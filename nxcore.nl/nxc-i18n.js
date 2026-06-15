@@ -467,13 +467,49 @@
       root.querySelectorAll(".nxc-lang button[data-lang]").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-lang") === lang); });
     });
   }
+  // The ".reveal-type" heading is split into per-character spans by the theme
+  // (SplitType + GSAP scroll-fill). Capture its plain text in both languages
+  // BEFORE the theme splits it, so an in-place toggle can re-create the effect.
+  function captureReveal() {
+    document.querySelectorAll(".reveal-type").forEach(function (el) {
+      if (el.__txtEN !== undefined) return;
+      var en = el.textContent;
+      el.__txtEN = en;
+      el.__txtNL = NDICT[en.replace(/\s+/g, " ").trim()] || en;
+    });
+  }
+  // Re-run the scroll-fill effect on the chosen language (used on toggle only —
+  // at first load the theme's own main.js does the initial split).
+  function reinitReveal(lang) {
+    if (!window.SplitType || !window.gsap) return;
+    document.querySelectorAll(".reveal-type").forEach(function (el) {
+      var want = (lang === "nl") ? el.__txtNL : el.__txtEN;
+      if (want === undefined) return;
+      // Replace with a FRESH clone: SplitType caches an element's original text,
+      // so re-splitting the same node would revert to the load-time language.
+      var fresh = el.cloneNode(false);
+      fresh.__txtEN = el.__txtEN; fresh.__txtNL = el.__txtNL;
+      fresh.textContent = want;
+      if (window.ScrollTrigger) window.ScrollTrigger.getAll().forEach(function (st) { if (st.trigger === el) st.kill(); });
+      el.parentNode.replaceChild(fresh, el);
+      var t = new window.SplitType(fresh, { types: "chars, words" });
+      window.gsap.from(t.chars, {
+        scrollTrigger: { opacity: 1, trigger: fresh, start: "top 80%", end: "top -10%", scrub: true, marker: false },
+        opacity: 0.2, stagger: 0.5,
+      });
+    });
+    if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+  }
+
   function apply(lang) { if (lang === "nl") toNL(); else toEN(); paintToggle(lang); syncNexa(lang); syncLegal(lang); }
 
+  // Instant in-place language switch (no page reload).
   function setLang(lang) {
     try { localStorage.setItem(LS, lang); } catch (e) {}
-    // Reload so the scroll-fill text animation (SplitType) re-initialises on the
-    // chosen language. Re-splitting the text in place would break the effect.
-    location.reload();
+    toEN();                       // restore EN baseline for all normal text
+    if (lang === "nl") toNL();    // then apply target language
+    paintToggle(lang); syncNexa(lang); syncLegal(lang);
+    reinitReveal(lang);           // re-create the scroll-fill effect in the new language
   }
 
   // ---- toggle UI ----
@@ -521,6 +557,7 @@
 
   function init() {
     toggleEl = buildToggle();
+    captureReveal();        // record reveal-type text (EN + NL) before the theme splits it
     apply(current());
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
