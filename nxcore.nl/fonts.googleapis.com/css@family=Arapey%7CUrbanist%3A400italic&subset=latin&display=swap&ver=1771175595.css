@@ -1,0 +1,14 @@
+@font-face {
+  font-family: 'Arapey';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts.gstatic.com/s/arapey/v17/-W__XJn-UDDA2RCKYNodREEjew.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Urbanist';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts.gstatic.com/s/urbanist/v18/L0xtDF02iFML4hGCyMqgdyNEf6or5L2WA133VamoY8aXLpS0WIU.woff) format('woff');
+}

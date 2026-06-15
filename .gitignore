@@ -1,0 +1,6 @@
+node_modules/
+data/
+*.log
+.DS_Store
+dev-start.sh
+Start NexaCore Website.command

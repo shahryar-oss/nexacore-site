@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: nexacore-site
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "NexaCore (website) <noreply@transformiran.info>"
+      - key: CONTACT_TO
+        value: "info@nxcore.nl"
+      - key: NEXA_MODEL
+        value: "claude-haiku-4-5"

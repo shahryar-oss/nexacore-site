@@ -1,0 +1,903 @@
+/* ============================================================
+   NXCORE HERO — PASS #1 (Claude, 2026-05-31)
+   Loaded via filemtime-versioned enqueue (cache-safe).
+   To fully restore the original look: empty this file.
+   ============================================================ */
+
+/* 1) Intro paragraph: brighter, tighter, easier to read */
+.hero-sec .hero-top-desc {
+	max-width: 430px;
+	line-height: 1.75;
+}
+.hero-sec .hero-top-desc,
+.hero-sec .hero-top-desc p {
+	color: rgba(255, 255, 255, 0.82) !important;
+	font-size: 15px;
+	letter-spacing: 0.1px;
+}
+.hero-sec .hero-top-desc strong,
+.hero-sec .hero-top-desc b {
+	color: #ffffff !important;
+}
+
+/* 2) Tame the oversized 96px bottom title so it stops competing with the logo */
+body .hero-sec .hero-bottom h2 {
+	font-size: clamp(2.2rem, 4.2vw, 3.4rem) !important;
+	line-height: 1.08 !important;
+	letter-spacing: -0.02em;
+}
+
+/* 3) Soft glow hugging the glass-shield logo */
+.hero-sec .hero-video,
+.hero-sec .hero-video img,
+.hero-sec .hero-video video {
+	filter: drop-shadow(0 0 70px rgba(120, 150, 255, 0.30))
+	        drop-shadow(0 0 150px rgba(90, 110, 220, 0.18));
+}
+
+/* (rule #4 removed — it pulled the intro text up into the header logo) */
+
+/* 5) Lead line acts as a mini-headline above the supporting text */
+.hero-sec .hero-top-desc .nx-hero-lead {
+	display: block;
+	font-size: 22px;
+	line-height: 1.35;
+	font-weight: 600;
+	color: #ffffff !important;
+	margin-bottom: 14px;
+	letter-spacing: 0.1px;
+}
+
+/* ============================================================
+   SECTION 2 "Why NexaCore" — uniform professional cards
+   (removes demo photos, fixes cramped text, adds custom icons)
+   ============================================================ */
+
+/* uniform alignment — remove the uneven stagger */
+.about-sec .funfacts-wrap .funfact-box:nth-child(odd),
+.about-sec .funfacts-wrap .funfact-box:nth-child(3) {
+	margin-top: 0 !important;
+}
+
+/* kill the demo photo overlays */
+.about-sec .funfact-box .overlay {
+	display: none !important;
+}
+
+/* per-card prismatic accent colors */
+.about-sec .funfacts-wrap .funfact-box:nth-child(1) { --card-accent: #6ea8ff; }
+.about-sec .funfacts-wrap .funfact-box:nth-child(2) { --card-accent: #54e0c0; }
+.about-sec .funfacts-wrap .funfact-box:nth-child(3) { --card-accent: #b18cff; }
+.about-sec .funfacts-wrap .funfact-box:nth-child(4) { --card-accent: #ff8fb6; }
+
+/* refined card surface + accent tint + hover lift */
+.about-sec .funfact-box {
+	--card-accent: #6ea8ff;
+	background:
+		radial-gradient(130% 90% at 0% 0%, color-mix(in srgb, var(--card-accent) 13%, transparent), transparent 58%),
+		linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)) !important;
+	border: 1px solid color-mix(in srgb, var(--card-accent) 24%, rgba(255,255,255,0.12)) !important;
+	transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
+}
+.about-sec .funfact-box.active,
+.about-sec .funfact-box:hover {
+	border-color: color-mix(in srgb, var(--card-accent) 70%, transparent) !important;
+	transform: translateY(-6px);
+	box-shadow: 0 12px 44px color-mix(in srgb, var(--card-accent) 24%, transparent);
+}
+
+/* header: icon on top, then left-aligned title with natural wrapping */
+.about-sec .funfact-box .funfact-header {
+	flex-direction: column;
+	align-items: flex-start !important;
+	justify-content: flex-start !important;
+	gap: 16px;
+}
+/* accent-colored icon (SVG recolored via CSS mask) + soft glow */
+.about-sec .funfact-box .funfact-header::before {
+	content: "";
+	display: block;
+	width: 38px;
+	height: 38px;
+	background: var(--card-accent);
+	-webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+	-webkit-mask-position: center; mask-position: center;
+	-webkit-mask-size: contain; mask-size: contain;
+	filter: drop-shadow(0 0 9px color-mix(in srgb, var(--card-accent) 70%, transparent));
+}
+.about-sec .funfact-box .funfact-header .title {
+	width: auto !important;
+	max-width: 100% !important;
+	text-align: left !important;
+	font-size: 19px !important;
+	line-height: 1.35 !important;
+}
+/* accent-gradient number */
+.about-sec .funfact-box .funfact-footer .number {
+	background: linear-gradient(120deg, var(--card-accent), #ffffff) !important;
+	-webkit-background-clip: text !important;
+	background-clip: text !important;
+	-webkit-text-fill-color: transparent !important;
+}
+
+/* per-card icons (mask recolors each to its accent) */
+.about-sec .funfacts-wrap .funfact-box:nth-child(1) .funfact-header::before {
+	-webkit-mask-image: url("assets/icons/mindset.svg");
+	mask-image: url("assets/icons/mindset.svg");
+}
+.about-sec .funfacts-wrap .funfact-box:nth-child(2) .funfact-header::before {
+	-webkit-mask-image: url("assets/icons/communication.svg");
+	mask-image: url("assets/icons/communication.svg");
+}
+.about-sec .funfacts-wrap .funfact-box:nth-child(3) .funfact-header::before {
+	-webkit-mask-image: url("assets/icons/scale.svg");
+	mask-image: url("assets/icons/scale.svg");
+}
+.about-sec .funfacts-wrap .funfact-box:nth-child(4) .funfact-header::before {
+	-webkit-mask-image: url("assets/icons/ai.svg");
+	mask-image: url("assets/icons/ai.svg");
+}
+
+/* ============================================================
+   Hide the demo/placeholder testimonials section ("OUR REVIEWS")
+   until real client quotes are available. (Reversible: delete this.)
+   ============================================================ */
+.elementor-element-cd45727 {
+	display: none !important;
+}
+
+/* ============================================================
+   Pricing: align all CTA buttons on one line by pinning each
+   card's footer to the bottom of the (equal-height) card.
+   ============================================================ */
+#pricing .pricing-box .pricing-footer {
+	margin-top: auto;
+}
+#pricing .pricing-box .pricing-footer .theme-btn {
+	white-space: nowrap;
+}
+
+/* ============================================================
+   Footer: tame the oversized "NEXACORE" wordmark image so it
+   doesn't dominate short pages (cart/checkout etc.)
+   ============================================================ */
+.footer-bottom .split-text-anim img {
+	max-height: 90px !important;
+	width: auto !important;
+}
+.footer-bottom {
+	padding-bottom: 24px;
+}
+
+/* ============================================================
+   WooCommerce block cart/checkout — readable on the dark theme
+   + on-brand primary buttons. (Targeted to avoid breaking form
+   inputs, which keep their own light backgrounds.)
+   ============================================================ */
+.wp-block-woocommerce-cart h2,
+.wp-block-woocommerce-cart h3,
+.wp-block-woocommerce-checkout h2,
+.wp-block-woocommerce-checkout h3,
+.wc-block-components-totals-item__label,
+.wc-block-components-totals-item__value,
+.wc-block-cart__totals-title,
+.wc-block-components-product-name,
+.wc-block-cart-item__prices,
+.wc-block-components-product-price,
+.wc-block-components-order-summary-item__description,
+.wp-block-woocommerce-cart .wc-block-components-product-metadata {
+	color: #ffffff !important;
+}
+.wp-block-woocommerce-cart a,
+.wp-block-woocommerce-checkout a {
+	color: #ffffff;
+}
+/* primary action buttons (Proceed to checkout / Place order) → branded pill */
+.wc-block-cart__submit-button,
+.wp-block-woocommerce-proceed-to-checkout .wc-block-components-button,
+.wp-block-woocommerce-checkout-order-summary-block ~ * .wc-block-components-button.contained,
+.wc-block-components-button.contained {
+	background: #ffffff !important;
+	color: #111111 !important;
+	border-radius: 30px !important;
+	font-weight: 600 !important;
+}
+
+/* ============================================================
+   BASKET (cart) — centered two-card modern layout
+   ============================================================ */
+/* center + constrain the whole cart so it isn't a wide empty table */
+.wp-block-woocommerce-cart .wc-block-cart,
+.wp-block-woocommerce-cart .wc-block-components-sidebar-layout {
+	max-width: 1080px !important;
+	margin: 40px auto !important;
+	gap: 30px !important;
+	align-items: flex-start !important;
+}
+/* items column = padded dark card */
+.wp-block-woocommerce-cart .wc-block-cart__main {
+	background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+	border: 1px solid rgba(255,255,255,0.1);
+	border-radius: 20px;
+	padding: 8px 30px 22px !important;
+	margin: 0 !important;
+}
+.wp-block-woocommerce-cart .wc-block-cart-items {
+	border: none !important;
+	background: transparent !important;
+}
+.wp-block-woocommerce-cart .wc-block-cart-items__header {
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	font-size: 12px;
+	color: rgba(255,255,255,0.45) !important;
+	border-color: rgba(255,255,255,0.12) !important;
+}
+.wp-block-woocommerce-cart .wc-block-cart-items__row,
+.wp-block-woocommerce-cart .wc-block-cart-items__row td {
+	border-color: rgba(255,255,255,0.08) !important;
+}
+.wc-block-cart-item__image img { border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+.wc-block-cart-item__product-name { font-weight: 600; }
+.wc-block-cart-item__remove-link { color: rgba(255,255,255,0.5) !important; }
+/* quantity stepper -> dark pill */
+.wc-block-components-quantity-selector {
+	border: 1px solid rgba(255,255,255,0.2) !important;
+	border-radius: 30px !important;
+	background: rgba(255,255,255,0.04) !important;
+}
+.wc-block-components-quantity-selector__input,
+.wc-block-components-quantity-selector__button { color: #fff !important; background: transparent !important; }
+/* sidebar = sticky glass summary card */
+.wp-block-woocommerce-cart .wc-block-cart__sidebar {
+	background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+	border: 1px solid rgba(255,255,255,0.12);
+	border-radius: 20px;
+	padding: 28px !important;
+}
+.wc-block-cart__totals-title { color: rgba(255,255,255,0.6) !important; letter-spacing: 0.08em; }
+/* totals / order-summary text */
+.wc-block-components-totals-item,
+.wc-block-components-totals-footer-item,
+.wc-block-components-order-summary-item,
+.wc-block-components-order-summary-item__total { color: #ffffff !important; }
+.wc-block-components-totals-footer-item { border-top: 1px solid rgba(255,255,255,0.12); }
+.wc-block-components-totals-coupon input {
+	background: rgba(255,255,255,0.04) !important;
+	border: 1px solid rgba(255,255,255,0.18) !important;
+	color: #ffffff !important;
+	border-radius: 10px !important;
+}
+/* checkout order-summary panel -> matching glass */
+.wp-block-woocommerce-checkout-order-summary-block,
+.wc-block-components-order-summary {
+	border: 1px solid rgba(255,255,255,0.12);
+	border-radius: 18px;
+	background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+}
+
+/* ============================================================
+   Modern checkout — dark, branded form fields (so the Contact
+   & Billing inputs match the sleek Stripe card field instead
+   of being stark white boxes).
+   ============================================================ */
+.wp-block-woocommerce-checkout input[type="text"],
+.wp-block-woocommerce-checkout input[type="email"],
+.wp-block-woocommerce-checkout input[type="tel"],
+.wp-block-woocommerce-checkout input[type="number"],
+.wp-block-woocommerce-checkout input[type="password"],
+.wp-block-woocommerce-checkout textarea,
+.wp-block-woocommerce-checkout select,
+.wp-block-woocommerce-checkout .wc-block-components-text-input input,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control input,
+.wp-block-woocommerce-checkout .components-form-token-field__input {
+	background-color: rgba(255, 255, 255, 0.04) !important;
+	border: 1px solid rgba(255, 255, 255, 0.18) !important;
+	color: #ffffff !important;
+	border-radius: 10px !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input input:focus,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control input:focus,
+.wp-block-woocommerce-checkout select:focus {
+	border-color: rgba(255, 255, 255, 0.55) !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input label,
+.wp-block-woocommerce-checkout label,
+.wp-block-woocommerce-checkout .wc-block-components-checkout-step__title {
+	color: rgba(255, 255, 255, 0.72) !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input.is-active label {
+	color: rgba(255, 255, 255, 0.55) !important;
+}
+/* autofill: keep text light, not the browser's white-on-white */
+.wp-block-woocommerce-checkout input:-webkit-autofill {
+	-webkit-text-fill-color: #ffffff !important;
+	-webkit-box-shadow: 0 0 0 1000px #1a1a1a inset !important;
+}
+
+/* ---- constrain + center the checkout so it isn't edge-to-edge wide ---- */
+.wp-block-woocommerce-checkout {
+	max-width: 1140px !important;
+	margin: 36px auto !important;
+}
+/* fix the white country dropdown (combobox) -> dark like the rest */
+.wp-block-woocommerce-checkout .wc-block-components-combobox,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control,
+.wp-block-woocommerce-checkout .wc-block-components-combobox input,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control input,
+.wp-block-woocommerce-checkout [class*="combobox"] input {
+	background-color: rgba(255, 255, 255, 0.04) !important;
+	color: #ffffff !important;
+	border: 1px solid rgba(255, 255, 255, 0.18) !important;
+	border-radius: 10px !important;
+}
+.wp-block-woocommerce-checkout input::placeholder,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control input::placeholder {
+	color: rgba(255, 255, 255, 0.4) !important;
+}
+/* the country suggestions dropdown list */
+.wc-block-components-combobox-control__suggestions-container,
+.components-form-token-field__suggestions-list {
+	background: #161616 !important;
+	color: #ffffff !important;
+	border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+.components-form-token-field__suggestion { color: #ffffff !important; }
+.components-form-token-field__suggestion.is-selected { background: rgba(255,255,255,0.1) !important; }
+
+/* ---- accent-colored field borders + glow (match the colorful pages) ---- */
+.wp-block-woocommerce-checkout { --nx-co-accent: #ff8fb6; }
+/* country field: force-dark whether it's a native <select> or a JS combobox
+   (Safari renders native selects white unless appearance is disabled) */
+.wp-block-woocommerce-checkout select {
+	-webkit-appearance: none !important;
+	appearance: none !important;
+	background-color: #0a0a0a !important;
+	color: #ffffff !important;
+}
+.wp-block-woocommerce-checkout select option { background: #0a0a0a !important; color: #fff !important; }
+.wp-block-woocommerce-checkout .wc-block-components-combobox,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control,
+.wp-block-woocommerce-checkout .wc-block-components-combobox .components-base-control__field,
+.wp-block-woocommerce-checkout .components-combobox-control,
+.wp-block-woocommerce-checkout .components-combobox-control__input,
+.wp-block-woocommerce-checkout .wc-block-components-combobox input,
+.wp-block-woocommerce-checkout [class*="combobox"] input {
+	background-color: #0a0a0a !important;
+	color: #ffffff !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input input,
+.wp-block-woocommerce-checkout .wc-block-components-text-input textarea,
+.wp-block-woocommerce-checkout input[type="text"],
+.wp-block-woocommerce-checkout input[type="email"],
+.wp-block-woocommerce-checkout input[type="tel"],
+.wp-block-woocommerce-checkout select,
+.wp-block-woocommerce-checkout .wc-block-components-combobox,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control {
+	border: 1px solid color-mix(in srgb, var(--nx-co-accent) 58%, transparent) !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input input:focus,
+.wp-block-woocommerce-checkout input:focus,
+.wp-block-woocommerce-checkout select:focus,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control input:focus {
+	border-color: color-mix(in srgb, var(--nx-co-accent) 85%, transparent) !important;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-co-accent) 16%, transparent) !important;
+	outline: none !important;
+}
+/* force the stubborn country combobox container + input to dark */
+.wp-block-woocommerce-checkout .wc-block-components-combobox,
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control,
+.wp-block-woocommerce-checkout .wc-block-components-combobox .components-base-control,
+.wp-block-woocommerce-checkout .wc-block-components-combobox .components-base-control__field,
+.wp-block-woocommerce-checkout .wc-block-components-combobox .components-flex,
+.wp-block-woocommerce-checkout .components-combobox-control,
+.wp-block-woocommerce-checkout .components-combobox-control__input {
+	background-color: rgba(255, 255, 255, 0.04) !important;
+	color: #ffffff !important;
+}
+/* accent border on the order-summary card + payment box */
+.wp-block-woocommerce-checkout-order-summary-block,
+.wc-block-components-order-summary,
+.wp-block-woocommerce-checkout .wc-block-checkout__payment-method,
+.wp-block-woocommerce-checkout .wc-block-components-radio-control-accordion-option {
+	border: 1px solid color-mix(in srgb, var(--nx-co-accent) 30%, rgba(255,255,255,0.12)) !important;
+}
+
+/* ---- Place Order / primary button: keep white, add a pink hover glow ---- */
+.wc-block-components-checkout-place-order-button,
+.wp-block-woocommerce-checkout .wc-block-components-button.contained,
+.wc-block-cart__submit-button {
+	transition: box-shadow .25s ease, transform .25s ease !important;
+}
+.wc-block-components-checkout-place-order-button:hover,
+.wp-block-woocommerce-checkout .wc-block-components-button.contained:hover,
+.wc-block-cart__submit-button:hover {
+	box-shadow: 0 8px 34px color-mix(in srgb, #ff8fb6 50%, transparent) !important;
+	transform: translateY(-1px) !important;
+}
+
+/* ---- clearer labels + section titles (brighter, near-white) ---- */
+.wp-block-woocommerce-checkout .wc-block-components-checkout-step__title,
+.wp-block-woocommerce-checkout h2,
+.wp-block-woocommerce-checkout legend,
+.wp-block-woocommerce-checkout .wc-block-components-title {
+	color: #ffffff !important;
+}
+.wp-block-woocommerce-checkout label,
+.wp-block-woocommerce-checkout .wc-block-components-text-input label,
+.wp-block-woocommerce-checkout .wc-block-components-combobox label,
+.wp-block-woocommerce-checkout .wc-block-components-checkout-step__description {
+	color: rgba(255, 255, 255, 0.9) !important;
+}
+.wp-block-woocommerce-checkout .wc-block-components-text-input.is-active label {
+	color: rgba(255, 255, 255, 0.7) !important;
+}
+/* ---- kill the white suggestions box under the country field ---- */
+.wp-block-woocommerce-checkout .wc-block-components-combobox-control__suggestions-container,
+.wp-block-woocommerce-checkout [class*="suggestions-container"],
+.wp-block-woocommerce-checkout [class*="suggestions-list"],
+.wp-block-woocommerce-checkout .components-form-token-field__suggestions-list {
+	background: #0a0a0a !important;
+	color: #ffffff !important;
+	border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+.wp-block-woocommerce-checkout [class*="suggestions-list"] li,
+.wp-block-woocommerce-checkout .components-form-token-field__suggestion {
+	color: #ffffff !important;
+	background: transparent !important;
+}
+.wp-block-woocommerce-checkout [class*="suggestions-list"] li:hover,
+.wp-block-woocommerce-checkout .components-form-token-field__suggestion.is-selected {
+	background: rgba(255, 255, 255, 0.08) !important;
+}
+/* nuclear: kill ANY white element inside the country combobox */
+.wp-block-woocommerce-checkout .wc-block-components-combobox,
+.wp-block-woocommerce-checkout .wc-block-components-combobox *,
+.wp-block-woocommerce-checkout .components-combobox-control,
+.wp-block-woocommerce-checkout .components-combobox-control * {
+	background-color: #0a0a0a !important;
+	color: #ffffff !important;
+}
+/* also the country/state field wrappers (varies by Woo version) */
+.wp-block-woocommerce-checkout .wc-block-components-country-input,
+.wp-block-woocommerce-checkout .wc-block-components-country-input *,
+.wp-block-woocommerce-checkout .wc-block-components-state-input,
+.wp-block-woocommerce-checkout .wc-block-components-state-input *,
+.wp-block-woocommerce-checkout .wc-block-components-address-form__country,
+.wp-block-woocommerce-checkout .wc-block-components-address-form__country * {
+	background-color: #0a0a0a !important;
+	color: #ffffff !important;
+}
+
+/* ============================================================
+   SERVICE DETAIL PAGES (template: page-service.php) — rich/colorful
+   Uses --nx-accent (set per service) for prismatic accenting.
+   ============================================================ */
+.nx-service {
+	--nx-accent: #6ea8ff;
+	position: relative;
+	background: #050507;
+	color: #fff;
+	overflow: hidden;
+	font-family: 'Urbanist', sans-serif;
+}
+.nx-service .nx-svc-wrap {
+	max-width: 1140px;
+	margin: 0 auto;
+	padding: 0 28px;
+	position: relative;
+	z-index: 2;
+}
+/* ambient color orbs */
+.nx-orb {
+	position: absolute;
+	border-radius: 50%;
+	filter: blur(90px);
+	opacity: 0.5;
+	z-index: 0;
+	pointer-events: none;
+}
+.nx-orb-a {
+	width: 620px; height: 620px;
+	top: -200px; right: -160px;
+	background: radial-gradient(circle, var(--nx-accent), transparent 65%);
+	opacity: 0.35;
+}
+.nx-orb-b {
+	width: 520px; height: 520px;
+	top: 760px; left: -220px;
+	background: radial-gradient(circle, #8b5cff, transparent 65%);
+	opacity: 0.18;
+}
+.nx-svc-kicker {
+	display: inline-block;
+	font-size: 12px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--nx-accent);
+	margin-bottom: 16px;
+}
+/* ---------- hero ---------- */
+.nx-svc-hero { padding: 180px 0 70px; }
+.nx-svc-hero-inner {
+	display: flex;
+	align-items: center;
+	gap: 50px;
+}
+.nx-svc-hero-text { flex: 1 1 56%; }
+.nx-svc-eyebrow {
+	display: inline-block;
+	font-size: 13px;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--nx-accent);
+	margin-bottom: 20px;
+}
+.nx-svc-title {
+	font-family: 'Arapey', serif !important;
+	font-size: clamp(2.6rem, 5.5vw, 4.6rem) !important;
+	line-height: 1.04 !important;
+	font-weight: 400 !important;
+	margin: 0 0 22px !important;
+	background: linear-gradient(110deg, #ffffff 35%, var(--nx-accent) 130%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.nx-svc-promise {
+	font-size: clamp(1.1rem, 2vw, 1.45rem);
+	line-height: 1.55;
+	color: rgba(255,255,255,0.82);
+	max-width: 560px;
+	margin: 0 0 34px;
+}
+/* hero art — glowing concentric rings + glass core with icon */
+.nx-svc-hero-art {
+	flex: 1 1 44%;
+	position: relative;
+	height: 340px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.nx-svc-art-ring,
+.nx-svc-art-ring2 {
+	position: absolute;
+	border-radius: 50%;
+	border: 1px solid color-mix(in srgb, var(--nx-accent) 45%, transparent);
+}
+.nx-svc-art-ring { width: 300px; height: 300px; box-shadow: 0 0 90px color-mix(in srgb, var(--nx-accent) 35%, transparent); }
+.nx-svc-art-ring2 { width: 210px; height: 210px; border-color: color-mix(in srgb, var(--nx-accent) 25%, transparent); }
+.nx-svc-art-core {
+	position: relative;
+	width: 140px; height: 140px;
+	border-radius: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(160deg, color-mix(in srgb, var(--nx-accent) 22%, transparent), rgba(255,255,255,0.03));
+	border: 1px solid color-mix(in srgb, var(--nx-accent) 40%, transparent);
+	box-shadow: 0 0 70px color-mix(in srgb, var(--nx-accent) 45%, transparent), inset 0 0 30px rgba(255,255,255,0.05);
+	backdrop-filter: blur(6px);
+}
+.nx-svc-art-core img { width: 60px; height: 60px; }
+/* ---------- shared button ---------- */
+.nx-svc-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 16px;
+	font-weight: 500;
+	color: #fff;
+	text-decoration: none;
+	padding: 15px 30px;
+	border: 1.5px solid color-mix(in srgb, var(--nx-accent) 60%, #ffffff);
+	border-radius: 40px;
+	transition: all .25s ease;
+}
+.nx-svc-btn:hover { background: var(--nx-accent); color: #06060a; border-color: var(--nx-accent); box-shadow: 0 8px 30px color-mix(in srgb, var(--nx-accent) 40%, transparent); }
+.nx-svc-btn span { font-size: 18px; line-height: 1; }
+.nx-svc-btn-solid { background: var(--nx-accent); color: #06060a; border-color: var(--nx-accent); }
+/* ---------- sections ---------- */
+.nx-svc-overview, .nx-svc-included, .nx-svc-process, .nx-svc-more { padding: 58px 0; }
+.nx-svc-h2 {
+	font-family: 'Arapey', serif !important;
+	font-size: clamp(1.9rem, 3.5vw, 2.9rem) !important;
+	font-weight: 400 !important;
+	color: #fff !important;
+	margin: 0 0 36px !important;
+}
+.nx-svc-overview p {
+	font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+	line-height: 1.75;
+	color: rgba(255,255,255,0.8);
+	max-width: 860px;
+	border-left: 2px solid var(--nx-accent);
+	padding: 6px 0 6px 28px;
+}
+/* capabilities = glass cards */
+.nx-svc-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 18px;
+}
+.nx-svc-cap {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 22px 22px;
+	border-radius: 16px;
+	background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+	border: 1px solid rgba(255,255,255,0.1);
+	transition: transform .25s ease, border-color .25s ease;
+}
+.nx-svc-cap:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--nx-accent) 55%, transparent); }
+.nx-svc-cap-dot {
+	flex: none;
+	width: 30px; height: 30px;
+	border-radius: 50%;
+	display: flex; align-items: center; justify-content: center;
+	background: color-mix(in srgb, var(--nx-accent) 18%, transparent);
+	border: 1px solid color-mix(in srgb, var(--nx-accent) 50%, transparent);
+}
+.nx-svc-cap-dot span { width: 8px; height: 8px; border-radius: 50%; background: var(--nx-accent); box-shadow: 0 0 10px var(--nx-accent); }
+.nx-svc-cap-txt { font-size: 1rem; line-height: 1.4; color: rgba(255,255,255,0.92); }
+/* process steps */
+.nx-svc-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.nx-svc-step {
+	border: 1px solid rgba(255,255,255,0.12);
+	border-radius: 18px;
+	padding: 34px 28px;
+	background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.01));
+	position: relative;
+	overflow: hidden;
+}
+.nx-svc-step::before { content:""; position:absolute; top:0; left:0; width:100%; height:3px; background: linear-gradient(90deg, var(--nx-accent), transparent); }
+.nx-svc-num {
+	font-family: 'Arapey', serif;
+	font-size: 46px;
+	display: block;
+	margin-bottom: 14px;
+	background: linear-gradient(120deg, var(--nx-accent), #ffffff);
+	-webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nx-svc-step h3 { font-size: 1.25rem; font-weight: 600; color: #fff; margin: 0 0 10px; }
+.nx-svc-step p { font-size: 0.98rem; line-height: 1.6; color: rgba(255,255,255,0.7); margin: 0; }
+/* CTA band */
+.nx-svc-cta-band { padding: 40px 0 80px; }
+.nx-svc-cta-inner {
+	text-align: center;
+	padding: 64px 32px;
+	border-radius: 26px;
+	background:
+		radial-gradient(80% 140% at 50% 0%, color-mix(in srgb, var(--nx-accent) 22%, transparent), transparent 70%),
+		linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+	border: 1px solid color-mix(in srgb, var(--nx-accent) 35%, transparent);
+}
+.nx-svc-cta-inner .nx-svc-h2 { margin-bottom: 14px !important; }
+.nx-svc-cta-inner p { font-size: 1.15rem; color: rgba(255,255,255,0.78); margin: 0 0 28px; }
+/* more services */
+.nx-svc-more-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+.nx-svc-more-card {
+	display: flex; align-items: center; gap: 14px;
+	padding: 22px;
+	border-radius: 16px;
+	text-decoration: none;
+	background: rgba(255,255,255,0.03);
+	border: 1px solid rgba(255,255,255,0.1);
+	color: rgba(255,255,255,0.9);
+	font-size: 0.98rem;
+	transition: transform .25s ease, border-color .25s ease;
+}
+.nx-svc-more-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--nx-accent) 55%, transparent); }
+.nx-svc-more-card img { width: 26px; height: 26px; opacity: 0.9; }
+.nx-svc-more-arrow { margin-left: auto; color: var(--nx-accent); }
+/* responsive */
+@media (max-width: 900px) {
+	.nx-svc-grid, .nx-svc-steps, .nx-svc-more-grid { grid-template-columns: 1fr; }
+	.nx-svc-hero-inner { flex-direction: column; text-align: center; }
+	.nx-svc-hero-art { width: 100%; }
+	.nx-svc-promise { margin-left: auto; margin-right: auto; }
+	.nx-svc-overview p { border-left: none; padding-left: 0; }
+	.nx-svc-hero { padding-top: 150px; }
+}
+
+/* ============================================================
+   CONTACT FORM (Contact Form 7) — neon accents matching services
+   ============================================================ */
+.wpcf7-form { --neon: #6ea8ff; }
+
+/* text / email / number / textarea inputs */
+.wpcf7-form .wpcf7-text,
+.wpcf7-form .wpcf7-email,
+.wpcf7-form .wpcf7-textarea,
+.wpcf7-form input[type="text"],
+.wpcf7-form input[type="email"],
+.wpcf7-form input[type="number"],
+.wpcf7-form textarea {
+	border: 1px solid color-mix(in srgb, var(--neon) 45%, transparent) !important;
+	background: rgba(255, 255, 255, 0.03) !important;
+	color: #ffffff !important;
+	border-radius: 12px !important;
+	transition: box-shadow .25s ease, border-color .25s ease !important;
+}
+.wpcf7-form .wpcf7-text:focus,
+.wpcf7-form .wpcf7-email:focus,
+.wpcf7-form .wpcf7-textarea:focus,
+.wpcf7-form input:focus,
+.wpcf7-form textarea:focus {
+	border-color: var(--neon) !important;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon) 22%, transparent),
+	            0 0 20px color-mix(in srgb, var(--neon) 40%, transparent) !important;
+	outline: none !important;
+}
+
+/* company-type radio "buttons" — neon glow when selected */
+.wpcf7-radio .wpcf7-list-item label { transition: all .25s ease; }
+.wpcf7-radio .wpcf7-list-item:has(input:checked) label,
+.wpcf7-radio .wpcf7-list-item:has(input:checked) {
+	background: var(--neon) !important;
+	color: #06060a !important;
+	border-color: var(--neon) !important;
+	box-shadow: 0 0 24px color-mix(in srgb, var(--neon) 60%, transparent) !important;
+}
+.wpcf7-radio .wpcf7-list-item:has(input:checked) .wpcf7-list-item-label { color: #06060a !important; }
+
+/* "What do you need" checkboxes — each its own service color */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(1) { --neon: #54e0c0; } /* IT Support  - teal */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(2) { --neon: #6ea8ff; } /* Web Dev     - blue */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(3) { --neon: #b18cff; } /* AI          - purple */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(4) { --neon: #ff8fb6; } /* Brand       - pink */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(5) { --neon: #5be7ff; } /* Cloud       - cyan */
+.wpcf7-checkbox .wpcf7-list-item:nth-child(6) { --neon: #ffd166; } /* Other       - amber */
+.wpcf7-checkbox input[type="checkbox"] { accent-color: var(--neon); width: 18px; height: 18px; }
+.wpcf7-checkbox .wpcf7-list-item:has(input:checked) .wpcf7-list-item-label {
+	color: var(--neon) !important;
+	text-shadow: 0 0 12px color-mix(in srgb, var(--neon) 60%, transparent);
+}
+
+/* budget range slider — prismatic track + glowing thumb */
+.wpcf7-form input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 6px;
+	border-radius: 6px;
+	background: linear-gradient(90deg, #54e0c0, #6ea8ff, #b18cff, #ff8fb6) !important;
+	outline: none;
+}
+.wpcf7-form input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #ffffff;
+	border: 3px solid #6ea8ff;
+	box-shadow: 0 0 16px rgba(110, 168, 255, 0.85);
+	cursor: pointer;
+}
+.wpcf7-form input[type="range"]::-moz-range-thumb {
+	width: 22px; height: 22px; border-radius: 50%;
+	background: #fff; border: 3px solid #6ea8ff;
+	box-shadow: 0 0 16px rgba(110,168,255,0.85); cursor: pointer;
+}
+.budget-values { color: rgba(255,255,255,0.8) !important; }
+
+/* ============================================================
+   PRICING — neon accents (per-card colors + checkmarks + featured glow)
+   ============================================================ */
+#pricing .pricing-box { --neon: #6ea8ff; }   /* default blue (BASIC, CUSTOM) */
+/* PRO = the featured card in the Essential tab -> GREEN */
+#pricing .tab-content > .tab-pane:nth-of-type(1) .pricing-box:has(.pricing-featured-icon) { --neon: #2fd07a; }
+/* ULTIMATE = the NON-featured card in the Advanced tab -> PINK */
+#pricing .tab-content > .tab-pane:nth-of-type(2) .pricing-box:not(:has(.pricing-featured-icon)) { --neon: #ff6fae; }
+/* CUSTOM = the featured card in the Advanced tab -> GOLD */
+#pricing .tab-content > .tab-pane:nth-of-type(2) .pricing-box:has(.pricing-featured-icon) { --neon: #f5b73e; }
+/* feature checkmark chips -> accent */
+#pricing .pricing-box .feature-lists li .icon {
+	background: color-mix(in srgb, var(--neon) 20%, transparent) !important;
+	border: 1px solid color-mix(in srgb, var(--neon) 50%, transparent) !important;
+	color: var(--neon) !important;
+}
+#pricing .pricing-box .feature-lists li .icon svg,
+#pricing .pricing-box .feature-lists li .icon i,
+#pricing .pricing-box .feature-lists li .icon path { color: var(--neon) !important; stroke: var(--neon) !important; }
+/* featured plan glow + accent border */
+#pricing .pricing-box:has(.pricing-featured-icon) {
+	border: 1px solid color-mix(in srgb, var(--neon) 45%, transparent) !important;
+	box-shadow: 0 0 60px color-mix(in srgb, var(--neon) 18%, transparent) !important;
+}
+/* active pricing tab -> neon */
+#pricing .pricing_nav .nav-item button.active { color: #6ea8ff !important; }
+/* the price amount keeps its gradient but tint the /month */
+#pricing .pricing-box .price span { color: rgba(255,255,255,0.6) !important; }
+
+/* ============================================================
+   Remove the custom cursor-follower dot; restore normal cursor
+   ============================================================ */
+/* the GSAP mouse-follower dot is the element #ball */
+#ball { display: none !important; }
+* { cursor: auto !important; }
+a, button, [role="button"], .theme-btn, .nx-svc-btn,
+input[type="submit"], input[type="button"], label, select,
+.wpcf7-list-item, .pricing_nav button { cursor: pointer !important; }
+
+/* order-summary quantity badge: dark/readable instead of a white circle */
+.wc-block-components-order-summary-item__quantity {
+	background: #0a0a0a !important;
+	color: #ffffff !important;
+	border: 1px solid rgba(255,255,255,0.35) !important;
+}
+
+/* ============================================================
+   PRICING — stronger per-tier color differentiation
+   (BASIC = blue, PRO = purple; via the per-card --neon set earlier)
+   ============================================================ */
+/* the big price in the tier's accent gradient */
+#pricing .pricing-box .price {
+	background: linear-gradient(120deg, var(--neon) 8%, #ffffff 130%) !important;
+	-webkit-background-clip: text !important;
+	background-clip: text !important;
+	-webkit-text-fill-color: transparent !important;
+}
+#pricing .pricing-box .price span { -webkit-text-fill-color: rgba(255,255,255,0.45) !important; }
+/* plan name (BASIC / PRO) in accent */
+#pricing .pricing-box .title { color: var(--neon) !important; }
+/* accent top-bar + tinted border on each card */
+#pricing .pricing-box {
+	border: 1px solid color-mix(in srgb, var(--neon) 32%, rgba(255,255,255,0.1)) !important;
+	position: relative;
+}
+#pricing .pricing-box::before {
+	content: "";
+	position: absolute;
+	top: 0; left: 0; right: 0;
+	height: 4px;
+	background: linear-gradient(90deg, var(--neon), transparent 80%);
+	z-index: 3;
+}
+/* CTA button picks up the tier accent on hover */
+#pricing .pricing-box .pricing-footer .theme-btn {
+	border-color: color-mix(in srgb, var(--neon) 55%, #ffffff) !important;
+}
+#pricing .pricing-box .pricing-footer .theme-btn:hover {
+	background: var(--neon) !important;
+	color: #06060a !important;
+	border-color: var(--neon) !important;
+	box-shadow: 0 8px 30px color-mix(in srgb, var(--neon) 40%, transparent) !important;
+}
+
+/* ============================================================
+   NEXAMAIL PRODUCT PAGE — feature cards + CTA row
+   (reuses .nx-svc-* hero/cta/process from the service template)
+   ============================================================ */
+.nx-prod-cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.nx-prod-trialnote { margin-top: 14px; font-size: 0.9rem; color: rgba(255,255,255,0.5); }
+.nx-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.nx-feat-card {
+	border: 1px solid color-mix(in srgb, var(--nx-accent) 22%, rgba(255,255,255,0.1));
+	border-radius: 18px;
+	padding: 28px 24px;
+	background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+	transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.nx-feat-card:hover {
+	transform: translateY(-5px);
+	border-color: color-mix(in srgb, var(--nx-accent) 60%, transparent);
+	box-shadow: 0 12px 40px color-mix(in srgb, var(--nx-accent) 16%, transparent);
+}
+.nx-feat-icon {
+	display: block;
+	width: 34px; height: 34px;
+	margin-bottom: 16px;
+	background: var(--nx-accent);
+	-webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+	-webkit-mask-position: center; mask-position: center;
+	-webkit-mask-size: contain; mask-size: contain;
+	filter: drop-shadow(0 0 9px color-mix(in srgb, var(--nx-accent) 70%, transparent));
+}
+.nx-feat-card h3 { font-family: 'Urbanist', sans-serif; font-size: 1.15rem; font-weight: 600; color: #fff; margin: 0 0 10px; }
+.nx-feat-card p  { font-family: 'Urbanist', sans-serif; font-size: 0.96rem; line-height: 1.6; color: rgba(255,255,255,0.72); margin: 0; }
+@media (max-width: 900px) { .nx-feat-grid { grid-template-columns: 1fr; } }
