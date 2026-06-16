@@ -37,6 +37,20 @@ const NEXA_MAX_CHARS = 4000, NEXA_MAX_TURNS = 16, RL_MAX = 30, RL_WIN = 5 * 60 *
 const app = express();
 app.use(express.json({ limit: "256kb" }));
 
+/* Legacy WordPress page-id URLs (mirror artifacts) -> canonical clean URLs. */
+const PAGE_REDIRECTS = {
+  "/index.html@p=1487.html": "/contact/",
+  "/index.html@p=2635.html": "/terms/",
+  "/index.html@p=2637.html": "/privacy/",
+  "/index.html@p=2685.html": "/web-development/",
+  "/index.html@p=2686.html": "/it-support/",
+  "/index.html@p=2687.html": "/ai-automation/",
+  "/index.html@p=2688.html": "/brand-design/",
+  "/index.html@p=2690.html": "/nexamails/",
+  "/index.html@p=2695.html": "/klachtenprocedure/",
+};
+app.use((req, res, next) => { const to = PAGE_REDIRECTS[req.path]; if (to) return res.redirect(301, to); next(); });
+
 /* ---------------------------------------------------------------- prompt -- */
 const SYSTEM_PROMPT = process.env.NEXA_SYSTEM_PROMPT || "You are Nexa, the assistant on the NexaCore website (nxcore.nl), a Rotterdam digital studio. Help visitors learn what NexaCore does and get in touch. Be warm and concise, plain text, no emoji, speak as the NexaCore team (we/our). For anything beyond NexaCore, point them to info@nxcore.nl.";
 
