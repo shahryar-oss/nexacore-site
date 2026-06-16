@@ -1214,9 +1214,10 @@ We don’t just fix problems — we build systems that prevent them, improve wor
   <span class="nxp-glow nxp-glow-a"></span>
   <span class="nxp-glow nxp-glow-b"></span>
   <div class="nxp-inner">
+    <div class="nxp-logocol"><img src="/nexaMails.png" alt="NexaMails" class="nxp-logo"></div>
     <div class="nxp-copy">
       <span class="nxp-eyebrow">&#9733; Our flagship product</span>
-      <h2 class="nxp-title">Meet<br><img src="/nexaMails.png" alt="NexaMails" class="nxp-logo"></h2>
+      <h2 class="nxp-title">Meet <span class="nxp-grad">NexaMails</span></h2>
       <p class="nxp-lead">Email with an assistant that actually does the work. <strong>Nexa</strong> triages your inbox, drafts replies in your voice, runs your morning briefing, and keeps every promise you make &mdash; by click or by voice.</p>
       <ul class="nxp-chips">
         <li><span>&#9889;</span> Smart triage</li>
@@ -1286,10 +1287,11 @@ We don’t just fix problems — we build systems that prevent them, improve wor
 .nxp-glow{display:none;}
 .nxp-glow-a{width:420px;height:420px;left:-120px;top:-120px;background:#6ea8ff;}
 .nxp-glow-b{width:380px;height:380px;right:-100px;bottom:-140px;background:#b18cff;opacity:.42;}
-.nxp-inner{position:relative;max-width:1140px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:3.2rem;align-items:center;}
+.nxp-inner{position:relative;max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(170px,260px) 1.1fr .92fr;gap:2.6rem;align-items:center;}
+.nxp-logocol{display:flex;align-items:center;justify-content:center;}
 .nxp-eyebrow{display:inline-block;font-size:.78rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#f5b73e;background:color-mix(in srgb,#f5b73e 14%,transparent);border:1px solid color-mix(in srgb,#f5b73e 35%,transparent);padding:.4em 1em;border-radius:999px;margin-bottom:1.1rem;}
 .nxp-title{font-size:clamp(2.2rem,4.4vw,3.4rem);font-weight:800;line-height:1.05;color:#fff;margin:0 0 1rem;}
-.nxp-logo{display:inline-block;height:clamp(104px,14vw,148px) !important;width:auto !important;max-width:none !important;margin-top:.55rem;vertical-align:top;}
+.nxp-logo{display:block;width:100%;max-width:260px;height:auto !important;margin:0 auto;}
 .nxp-grad{background:linear-gradient(90deg,#6ea8ff,#b18cff 50%,#ff8fb6);-webkit-background-clip:text;background-clip:text;color:transparent;}
 .nxp-lead{color:#c4ccda;font-size:1.08rem;line-height:1.65;max-width:34rem;margin:0 0 1.5rem;}
 .nxp-chips{list-style:none;display:flex;flex-wrap:wrap;gap:.6rem;padding:0;margin:0 0 1.9rem;}
@@ -1331,7 +1333,7 @@ We don’t just fix problems — we build systems that prevent them, improve wor
 .nxp-nexa{font-size:.66rem;color:#8fe3cf;font-weight:600;}
 .nxp-askbar{display:flex;align-items:center;gap:.55rem;padding:.7rem .95rem;border-top:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025);color:#7f8aa0;font-size:.76rem;}
 .nxp-askdot{width:8px;height:8px;border-radius:50%;background:#b18cff;box-shadow:0 0 8px #b18cff;flex:none;}
-@media(max-width:900px){.nxp-inner{grid-template-columns:1fr;gap:2.4rem;}.nxp-art{order:-1;max-width:440px;}.nxp-band{padding:4rem 1.2rem;}}
+@media(max-width:900px){.nxp-inner{grid-template-columns:1fr;gap:2rem;justify-items:center;text-align:center;}.nxp-art{max-width:440px;}.nxp-logo{max-width:170px;}.nxp-chips{justify-content:center;}.nxp-cta-row{justify-content:center;}.nxp-band{padding:4rem 1.2rem;}}
 </style>				</div>
 					</div>
 		</div>
