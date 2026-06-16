@@ -352,8 +352,25 @@ app.post("/api/contact", async (req, res) => {
 });
 
 /* ------------------------------------------------------------------ static */
-app.use(express.static(SITE_DIR, { extensions: ["html"] }));
-app.get("*", (req, res) => res.sendFile(path.join(SITE_DIR, "index.html")));
+const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often
+app.use(express.static(SITE_DIR, {
+  extensions: ["html"],
+  setHeaders: (res, fp) => {
+    if (/\.html$/i.test(fp)) {
+      res.setHeader("Cache-Control", "public, max-age=0, must-revalidate"); // always fresh HTML
+    } else if (FRESH.has(path.basename(fp))) {
+      res.setHeader("Cache-Control", "public, max-age=300"); // 5 min — my frequently-updated assets
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=2592000, immutable"); // 30 days — versioned mirror assets, media, fonts
+    }
+  },
+}));
+// Missing files with an extension -> small 404 (don't serve the 172KB HTML page as a fake asset).
+app.get("*", (req, res) => {
+  if (path.extname(req.path)) { res.set("Cache-Control", "public, max-age=300"); return res.status(404).send("Not found"); }
+  res.set("Cache-Control", "public, max-age=0, must-revalidate");
+  res.sendFile(path.join(SITE_DIR, "index.html"));
+});
 
 app.listen(PORT, () => {
   console.log(`NexaCore site on http://localhost:${PORT}  (static: ${SITE_DIR})`);
