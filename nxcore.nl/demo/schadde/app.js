@@ -494,12 +494,138 @@ function wireBooking() {
   });
 }
 
+// --- AI assistent ----------------------------------------------------------
+const ASST = {
+  endpoint: "/api/schadde",
+  history: [],
+  greeted: false,
+  chips: [
+    "Hoeveel containers zijn te laat?",
+    "Welke moeten we ophalen?",
+    "Waar staat VH-2045?",
+    "Containers in Katwijk",
+    "Hoeveel staan er op locatie?",
+  ],
+};
+
+// Build a compact, Dutch-labelled snapshot of the LIVE dashboard for the assistant.
+function asstContext() {
+  const onLoc = CONTAINERS.filter(isOnLocation);
+  return {
+    today: isoLocal(REF_DATE),
+    bedrijf: "Fa Schadde van Dooren",
+    totalen: {
+      op_locatie: onLoc.length,
+      te_leveren: CONTAINERS.filter(isPlanned).length,
+      te_laat: onLoc.filter(isOverdue).length,
+      afgerond: CONTAINERS.filter(isClosed).length,
+      locaties: new Set(onLoc.map((c) => c.place)).size,
+    },
+    containers: CONTAINERS.map((c) => ({
+      nr: c.id,
+      klant: c.customer,
+      soort: c.segment,
+      type: c.type,
+      adres: `${c.street}, ${c.postcode} ${c.place}`,
+      plaats: c.place,
+      status: statusLabel(c),
+      leverdatum: c.checkIn,
+      afgesproken_dagen: c.agreedDays,
+      verwacht_retour: isClosed(c) ? null : isoLocal(expectedReturn(c)),
+      dagen_te_laat: overdueDays(c),
+      opgehaald_op: c.checkOut || null,
+    })),
+  };
+}
+
+function asstAddMsg(text, who) {
+  const wrap = document.getElementById("asst-msgs");
+  const el = document.createElement("div");
+  el.className = `asst-msg ${who}`;
+  el.textContent = text;
+  wrap.appendChild(el);
+  wrap.scrollTop = wrap.scrollHeight;
+  return el;
+}
+
+function asstRenderChips() {
+  const box = document.getElementById("asst-chips");
+  box.innerHTML = "";
+  ASST.chips.forEach((q) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "asst-chip"; b.textContent = q;
+    b.addEventListener("click", () => asstSend(q));
+    box.appendChild(b);
+  });
+}
+
+async function asstSend(question) {
+  question = (question || "").trim();
+  if (!question || ASST.busy) return;
+  ASST.busy = true;
+  document.getElementById("asst-chips").style.display = "none";
+  document.getElementById("asst-send").disabled = true;
+  document.getElementById("asst-text").value = "";
+  asstAddMsg(question, "user");
+  ASST.history.push({ role: "user", content: question });
+
+  const typing = asstAddMsg("", "bot");
+  typing.classList.add("typing");
+  typing.innerHTML = 'Even kijken<span class="asst-typing-dot">.</span><span class="asst-typing-dot">.</span><span class="asst-typing-dot">.</span>';
+
+  let reply;
+  try {
+    const r = await fetch(ASST.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question, context: asstContext(), history: ASST.history.slice(0, -1).slice(-6) }),
+    });
+    const data = await r.json().catch(() => ({}));
+    reply = r.ok ? (data.reply || "Sorry, ik kon geen antwoord vinden.") : (data.error || "De assistent is even niet bereikbaar.");
+  } catch (e) {
+    reply = "De assistent is nu niet bereikbaar. Probeer het later opnieuw.";
+  }
+  typing.remove();
+  asstAddMsg(reply, "bot");
+  ASST.history.push({ role: "assistant", content: reply });
+  ASST.busy = false;
+  document.getElementById("asst-send").disabled = false;
+  document.getElementById("asst-text").focus();
+}
+
+function asstOpen() {
+  document.getElementById("asst-panel").classList.add("open");
+  document.getElementById("asst-launch").classList.add("hidden");
+  document.getElementById("asst-panel").setAttribute("aria-hidden", "false");
+  if (!ASST.greeted) {
+    ASST.greeted = true;
+    asstAddMsg("Hallo! Ik ben de assistent van Fa Schadde van Dooren. Vraag me bijvoorbeeld waar een container staat, hoeveel er te laat zijn, welke we moeten ophalen, of zoek op klant of plaats.", "bot");
+    asstRenderChips();
+  }
+  document.getElementById("asst-text").focus();
+}
+function asstClose() {
+  document.getElementById("asst-panel").classList.remove("open");
+  document.getElementById("asst-launch").classList.remove("hidden");
+  document.getElementById("asst-panel").setAttribute("aria-hidden", "true");
+}
+
+function wireAssistant() {
+  document.getElementById("asst-launch").addEventListener("click", asstOpen);
+  document.getElementById("asst-close").addEventListener("click", asstClose);
+  document.getElementById("asst-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    asstSend(document.getElementById("asst-text").value);
+  });
+}
+
 // --- Boot ------------------------------------------------------------------
 function boot() {
   document.getElementById("today").textContent = fmtDateObj(REF_DATE);
   populateFilters();
   wireControls();
   wireBooking();
+  wireAssistant();
   refresh();
   // Keep the map correctly sized/zoomed when the browser window changes.
   let rt;

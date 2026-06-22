@@ -351,6 +351,64 @@ app.post("/api/contact", async (req, res) => {
   res.json({ ok: true, emailed });
 });
 
+/* ----------------------------------------------- /api/schadde (demo dashboard)
+   Grounded assistant for the Fa Schadde van Dooren container dashboard demo.
+   The browser sends the LIVE dashboard data as `context`; we answer only from it. */
+const SCHADDE_SYSTEM = `Je bent de assistent in het Container Dashboard van Fa Schadde van Dooren, een container- en afvalbedrijf in Katwijk en omstreken (Zuid-Holland). Je helpt de medewerkers (Dick, Lourens, Carlijne) met vragen over de verhuurde containers.
+
+Bij elke vraag krijg je de ACTUELE dashboardgegevens mee onder DATA: een samenvatting met totalen plus alle containers met containernummer (VH-xxxx), klant, soort (particulier/zakelijk), containertype, adres, plaats, status, leverdatum, afgesproken aantal dagen, verwacht retour, dagen te laat, en (indien afgerond) opgehaald-op.
+
+Statussen (levenscyclus): Geboekt -> Ingepland -> Onderweg -> Geleverd (staat op locatie) -> Opgehaald -> Afgerond. "Te laat" = een geleverde container die over de afgesproken einddatum is en nog niet is opgehaald. "Op te halen" = containers die op locatie staan en (bijna) over hun einddatum zijn, te laat eerst.
+
+Regels:
+- Antwoord ALLEEN op basis van de meegegeven DATA. Verzin niets. Staat iets er niet in, zeg dat eerlijk.
+- Wees kort, concreet en zakelijk. Noem containernummers, klantnamen, adressen en datums waar relevant.
+- Bij "hoeveel"-vragen: geef eerst het aantal, daarna een korte lijst (VH-nummer - klant - plaats).
+- Bij zoeken (op klant, plaats, type of nummer): geef de gevonden containers met hun belangrijkste gegevens.
+- Antwoord in het Nederlands, tenzij de gebruiker een andere taal gebruikt; spiegel dan die taal.
+- Platte tekst. Geen opmaaktekens zoals # of *, geen emoji. Korte regels/opsommingen mogen.
+- Praat namens Fa Schadde van Dooren (wij/we). Leg nooit uit hoe je technisch werkt of welke techniek je gebruikt.
+- Gebruik Nederlandse datums (bijv. 22 jun 2026). "Vandaag" is de datum 'today' uit de DATA.`;
+
+app.post("/api/schadde", async (req, res) => {
+  if (!ANTHROPIC_KEY) return res.status(503).json({ error: "De assistent is nu even niet beschikbaar." });
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0").split(",")[0].trim();
+  if (rateLimited(ip)) return res.status(429).json({ error: "Te veel vragen achter elkaar — probeer het zo nog eens." });
+
+  let question = String(req.body.question || "").trim();
+  if (!question) return res.status(400).json({ error: "Lege vraag." });
+  if (question.length > 1000) question = question.slice(0, 1000);
+  let context = "{}";
+  try { context = JSON.stringify(req.body.context || {}).slice(0, 80000); } catch (e) {}
+
+  const convo = [];
+  if (Array.isArray(req.body.history)) {
+    for (const h of req.body.history.slice(-6)) {
+      const role = h && h.role === "assistant" ? "assistant" : "user";
+      const txt = String((h && h.content) || "").trim().slice(0, 1500);
+      if (txt) convo.push({ role, content: txt });
+    }
+  }
+  convo.push({ role: "user", content: `DATA (actuele dashboardgegevens):\n${context}\n\nVRAAG:\n${question}` });
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 1024,
+        system: [{ type: "text", text: SCHADDE_SYSTEM, cache_control: { type: "ephemeral" } }],
+        messages: convo,
+      }),
+    });
+    if (!r.ok) { console.error("[schadde] API", r.status, (await r.text()).slice(0, 400)); return res.status(502).json({ error: "De assistent is even niet bereikbaar. Probeer het zo opnieuw." }); }
+    const data = await r.json();
+    let reply = (Array.isArray(data.content) ? data.content : []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+    reply = reply || "Sorry, dat heb ik niet helemaal begrepen — kunt u het anders formuleren?";
+    res.json({ reply });
+  } catch (e) { console.error("[schadde]", e.message); return res.status(502).json({ error: "De assistent had moeite met antwoorden. Probeer het zo opnieuw." }); }
+});
+
 /* ------------------------------------------------------------------ static */
 const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often
 app.use(express.static(SITE_DIR, {
