@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Fa Schadde van Dooren - Container Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Teko:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css?v=1" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="logo_original.png" alt="Schaddé van Dooren" />
+      <div class="brand-divider"></div>
+      <div>
+        <h1>Container Dashboard</h1>
+        <p>Live overzicht van verhuurde containers</p>
+      </div>
+    </div>
+    <div class="topbar-end">
+      <button id="new-booking" class="btn-primary">+ Nieuwe boeking</button>
+      <div class="topbar-right">
+        <div class="date" id="today"></div>
+        <div class="powered">Gebouwd door <b>NexaCore</b></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi">
+      <div class="label">Op locatie</div>
+      <div class="value" id="kpi-active">-</div>
+      <div class="sub">actief verhuurde containers</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Te leveren</div>
+      <div class="value" id="kpi-planned">-</div>
+      <div class="sub">geboekt of onderweg</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Locaties</div>
+      <div class="value" id="kpi-places">-</div>
+      <div class="sub">plaatsen met containers</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Gem. verhuurduur</div>
+      <div class="value" id="kpi-avg">-</div>
+      <div class="sub">van lopende verhuren</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Particulier / Zakelijk</div>
+      <div class="value" id="kpi-split">-</div>
+      <div class="sub">verdeling actieve verhuren</div>
+    </div>
+    <div class="kpi" id="kpi-overdue-card">
+      <div class="label">Te laat opgehaald</div>
+      <div class="value" id="kpi-overdue">-</div>
+      <div class="sub">over afgesproken einddatum</div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <div class="search">
+      <input id="search" type="text" placeholder="Zoek op klant, adres, plaats of containernummer..." />
+    </div>
+    <select id="f-status" title="Status">
+      <option value="actief">Op locatie</option>
+      <option value="gepland">Gepland</option>
+      <option value="telaat">Te laat</option>
+      <option value="afgerond">Afgerond</option>
+      <option value="alle">Alle</option>
+    </select>
+    <select id="f-type" title="Containertype"><option value="alle">Alle types</option></select>
+    <select id="f-place" title="Plaats"><option value="alle">Alle plaatsen</option></select>
+    <select id="f-duration" title="Verhuurduur">
+      <option value="alle">Alle duur</option>
+      <option value="0-1">Tot 1 week</option>
+      <option value="1-4">1 - 4 weken</option>
+      <option value="4-12">1 - 3 maanden</option>
+      <option value="12+">Meer dan 3 maanden</option>
+    </select>
+    <div class="seg-toggle">
+      <button data-seg="alle" class="active">Alle</button>
+      <button data-seg="particulier">Particulier</button>
+      <button data-seg="zakelijk">Zakelijk</button>
+    </div>
+    <button class="reset-btn" id="reset">Filters wissen</button>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Verhuurde containers</h2>
+        <span class="count" id="list-count"></span>
+      </div>
+      <div class="list" id="list"></div>
+    </div>
+
+    <div class="panel map-panel">
+      <div class="panel-head">
+        <h2>Kaart</h2>
+        <span class="count">Klik op een pin of een rij</span>
+      </div>
+      <div id="map"></div>
+      <div class="map-note">
+        <span class="lg"><span class="dot green"></span>Op locatie</span>
+        <span class="lg"><span class="dot amber"></span>Onderweg</span>
+        <span class="lg"><span class="dot blue"></span>Gepland</span>
+        <span class="lg"><span class="dot red"></span>Te laat</span>
+        <span class="lg"><span class="dot grey"></span>Afgerond</span>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <div class="tagline">Al meer dan 100 jaar een begrip in de regio Katwijk</div>
+    Demonstratieomgeving met voorbeeldgegevens - in de live versie automatisch gevoed vanuit OMS4Business.
+    Gebouwd door <b>NexaCore</b>.
+  </footer>
+
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Nieuwe boeking</h2>
+        <button class="modal-close" id="bk-close" type="button" aria-label="Sluiten">&times;</button>
+      </div>
+      <form id="booking-form" class="modal-body" autocomplete="off">
+        <fieldset class="seg-field">
+          <span class="field-label">Soort klant</span>
+          <label class="radio"><input type="radio" name="bk-seg" value="particulier" checked /> Particulier</label>
+          <label class="radio"><input type="radio" name="bk-seg" value="zakelijk" /> Zakelijk</label>
+        </fieldset>
+
+        <div class="form-grid">
+          <div id="bk-name-wrap" class="grid-2">
+            <label>Voornaam<input type="text" id="bk-first" /></label>
+            <label>Achternaam<input type="text" id="bk-last" /></label>
+          </div>
+          <div id="bk-company-wrap" class="grid-full" style="display:none">
+            <label>Bedrijfsnaam<input type="text" id="bk-company" /></label>
+          </div>
+          <div class="grid-2">
+            <label>Telefoon <span class="opt">(optioneel)</span><input type="tel" id="bk-phone" /></label>
+            <label>E-mail <span class="opt">(optioneel)</span><input type="email" id="bk-email" /></label>
+          </div>
+          <div class="grid-full">
+            <label>Straat en huisnummer<input type="text" id="bk-street" /></label>
+          </div>
+          <div class="grid-2">
+            <label>Postcode <span class="opt">(optioneel)</span><input type="text" id="bk-postcode" /></label>
+            <label>Plaats<select id="bk-place"><option value="">Kies plaats...</option></select></label>
+          </div>
+          <div class="grid-full">
+            <label>Containertype<select id="bk-type"><option value="">Kies type...</option></select></label>
+          </div>
+          <div class="grid-2">
+            <label>Leverdatum<input type="date" id="bk-date" /></label>
+            <label>Afgesproken periode (dagen)<input type="number" id="bk-days" min="1" step="1" /></label>
+          </div>
+          <div class="grid-full bk-return-line"><span id="bk-return"></span></div>
+          <div class="grid-full">
+            <label>Status<select id="bk-status"></select></label>
+          </div>
+          <div class="grid-full">
+            <label>Opmerking <span class="opt">(optioneel)</span><textarea id="bk-note" rows="2"></textarea></label>
+          </div>
+        </div>
+
+        <div class="bk-error" id="bk-error"></div>
+        <div class="modal-foot">
+          <button type="button" class="btn-ghost" id="bk-cancel">Annuleren</button>
+          <button type="submit" class="btn-primary">Boeking opslaan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>
