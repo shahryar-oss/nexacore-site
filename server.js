@@ -201,10 +201,11 @@ async function fetchSite(input) {
 function storeLead(rec) {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.appendFileSync(path.join(DATA_DIR, "leads.jsonl"), JSON.stringify(rec) + "\n"); } catch (e) { console.error("[lead store]", e.message); }
 }
-async function sendEmail({ subject, text, html, replyTo, attachments }) {
-  if (!RESEND_API_KEY) { console.log(`[email NOT sent — no RESEND_API_KEY]\nTo: ${CONTACT_TO}\nSubject: ${subject}\n${text}`); return false; }
+async function sendEmail({ to, subject, text, html, replyTo, attachments }) {
+  const recipients = Array.isArray(to) ? to.filter(Boolean) : (to ? [to] : [CONTACT_TO]);
+  if (!RESEND_API_KEY) { console.log(`[email NOT sent — no RESEND_API_KEY]\nTo: ${recipients.join(", ")}\nSubject: ${subject}\n${text}`); return false; }
   try {
-    const body = { from: EMAIL_FROM, to: [CONTACT_TO], reply_to: replyTo || undefined, subject, text };
+    const body = { from: EMAIL_FROM, to: recipients, reply_to: replyTo || undefined, subject, text };
     if (html) body.html = html;
     if (attachments && attachments.length) body.attachments = attachments;
     const r = await fetch("https://api.resend.com/emails", {
@@ -407,6 +408,74 @@ app.post("/api/schadde", async (req, res) => {
     reply = reply || "Sorry, dat heb ik niet helemaal begrepen — kunt u het anders formuleren?";
     res.json({ reply });
   } catch (e) { console.error("[schadde]", e.message); return res.status(502).json({ error: "De assistent had moeite met antwoorden. Probeer het zo opnieuw." }); }
+});
+
+/* ---------------------------------------------- /api/schadde-sign (e-sign)
+   Records a signed acceptance of the Container Dashboard proposal: builds a
+   branded contract PDF with the signature, emails a copy to the signer + to us,
+   and returns the PDF so the browser can download it. */
+app.post("/api/schadde-sign", async (req, res) => {
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0").split(",")[0].trim();
+  if (rateLimited(ip)) return res.status(429).json({ error: "Te veel verzoeken — probeer het zo opnieuw." });
+
+  const name = String(req.body.name || "").trim();
+  const email = String(req.body.email || "").trim();
+  const company = String(req.body.company || "").trim() || "Fa Schadde van Dooren";
+  const typed = String(req.body.typedName || "").trim().slice(0, 80);
+  const sigUrl = String(req.body.signature || "");
+  if (!name || !validEmail(email)) return res.status(400).json({ error: "Vul uw naam en een geldig e-mailadres in." });
+  if (!sigUrl && !typed) return res.status(400).json({ error: "Plaats een handtekening of typ uw naam." });
+
+  let pngBuffer = null;
+  const m = sigUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/);
+  if (m) { try { const b = Buffer.from(m[1], "base64"); if (b.length <= 2000000) pngBuffer = b; } catch (e) {} }
+
+  let signedAt;
+  try { signedAt = new Date().toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam", dateStyle: "long", timeStyle: "short" }); }
+  catch (e) { signedAt = new Date().toISOString(); }
+
+  const terms = `Container Dashboard voor Fa Schadde van Dooren
+
+Een centraal dashboard met een actueel overzicht van alle verhuurde containers (lijst en zoombare kaart), filters op type, plaats, duur en particulier/zakelijk, een zoekfunctie, signalering van te laat op te halen containers en overname van de historische verhuren.
+
+Levering in twee fasen:
+- Fase 1 — het dashboard (ontwerp en bouw), op te leveren als werkende demo.
+- Fase 2 — koppeling met OMS4Business, geocodering van adressen, migratie van historische verhuren, inlog voor het team, hosting opzetten en livegang.
+
+Investering: eenmalige bouw, richtprijs € 4.500 – € 6.500 (excl. btw). De definitieve vaste prijs wordt na een korte intake schriftelijk bevestigd, afhankelijk van de koppelingswijze met OMS4Business (directe API of export). Hosting: voor rekening van Schadde van Dooren, geschat € 10 – € 25 per maand. Onderhoud en ondersteuning zijn optioneel (vanaf € 95 per maand), nu niet verplicht.
+
+Doorlooptijd: circa 2 tot 4 weken na akkoord en zodra toegang tot OMS4Business beschikbaar is.
+
+Door dit voorstel elektronisch te ondertekenen gaat u akkoord met de uitvoering zoals hierboven beschreven en geeft u opdracht tot de korte intake. De definitieve vaste prijs wordt daarna schriftelijk bevestigd, voordat de bouw van Fase 2 start.`;
+
+  const filename = `NexaCore-Overeenkomst-Container-Dashboard-${slug(company)}-${todayStamp()}.pdf`;
+  let base64;
+  try {
+    const pdf = await buildPDF({
+      eyebrow: "Ondertekend voorstel",
+      title: "Container Dashboard — Akkoord op voorstel",
+      fields: [["Opdrachtgever", company], ["Ondertekend door", name], ["E-mail", email], ["Datum", signedAt]],
+      bodyMd: terms,
+      signature: { pngBuffer, typed: pngBuffer ? null : typed, name, role: company, signedAt, ip },
+    });
+    base64 = pdf.toString("base64");
+  } catch (e) { console.error("[schadde-sign pdf]", e.message); return res.status(500).json({ error: "Kon het document niet opmaken. Probeer het opnieuw." }); }
+
+  const fields = [["Opdrachtgever", company], ["Ondertekend door", name], ["E-mail", email], ["Datum", signedAt]];
+  const html = emailHTML({
+    eyebrow: "Ondertekend voorstel", title: "Container Dashboard — akkoord", fields,
+    message: "In de bijlage vindt u het door u ondertekende voorstel voor het Container Dashboard. Wij nemen spoedig contact met u op voor de korte intake.",
+    pdfAttached: true,
+  });
+  const text = `Beste ${name},\n\nBedankt voor uw akkoord op het voorstel voor het Container Dashboard. In de bijlage vindt u het ondertekende document. Wij nemen spoedig contact met u op voor de korte intake.\n\nMet vriendelijke groet,\nNexaCore`;
+  const emailed = await sendEmail({
+    to: [email, CONTACT_TO],
+    subject: `Ondertekend voorstel — Container Dashboard (${company})`,
+    text, html,
+    attachments: [{ filename, content: base64, content_type: "application/pdf" }],
+  });
+
+  res.json({ ok: true, emailed, filename, pdf: base64 });
 });
 
 /* ------------------------------------------------------------------ static */

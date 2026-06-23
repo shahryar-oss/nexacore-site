@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Teko:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="styles.css?v=2" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
@@ -21,6 +21,7 @@
       </div>
     </div>
     <div class="topbar-end">
+      <button id="open-proposal" class="btn-lime">Voorstel</button>
       <button id="new-booking" class="btn-primary">+ Nieuwe boeking</button>
       <div class="topbar-right">
         <div class="date" id="today"></div>
@@ -201,8 +202,85 @@
     </div>
   </div>
 
+  <!-- Voorstel + digitaal ondertekenen -->
+  <div class="modal-overlay" id="proposal-modal">
+    <div class="modal prop-modal">
+      <div class="modal-head">
+        <div>
+          <div class="asst-title">Voorstel</div>
+          <div class="asst-sub">Container Dashboard — Fa Schadde van Dooren</div>
+        </div>
+        <button class="modal-close" id="prop-close" type="button" aria-label="Sluiten">&times;</button>
+      </div>
+      <div class="prop-body">
+        <div class="prop-content">
+          <p class="prop-lead">Een centraal dashboard dat in één oogopslag laat zien waar al uw verhuurde containers staan, bij welke klant en hoe lang — zodat het dagelijkse handmatige opzoekwerk verdwijnt.</p>
+
+          <h3>Wat het dashboard biedt</h3>
+          <ul>
+            <li>Lijst van alle actief verhuurde containers met klant, locatie en incheckdatum.</li>
+            <li>Zoombare kaart met een pin per container; klik toont naam en adres.</li>
+            <li>Filters op containertype, plaats, duur en particulier/zakelijk, plus een zoekfunctie.</li>
+            <li>Signalering van containers die te laat zijn en opgehaald moeten worden.</li>
+            <li>Overname van uw historische (afgeronde) verhuren.</li>
+            <li>Ingebouwde assistent: stel een vraag in gewone taal en krijg direct antwoord.</li>
+          </ul>
+
+          <h3>Aanpak in twee fasen</h3>
+          <ul>
+            <li><b>Fase 1 — het dashboard:</b> ontworpen en gebouwd, op te leveren als werkende demo (dit scherm).</li>
+            <li><b>Fase 2 — koppeling en livegang:</b> koppeling met OMS4Business, geocodering van adressen, migratie van historische verhuren, inlog voor uw team, hosting en livegang.</li>
+          </ul>
+
+          <h3>Investering</h3>
+          <ul>
+            <li><b>Eenmalige bouw:</b> richtprijs € 4.500 – € 6.500 (excl. btw). De definitieve vaste prijs bevestigen wij na een korte intake, afhankelijk van de koppelingswijze met OMS4Business (directe API of export).</li>
+            <li><b>Hosting:</b> voor rekening van Schadde van Dooren, geschat € 10 – € 25 per maand. Wij verzorgen de opzet.</li>
+            <li><b>Onderhoud en ondersteuning</b> (optioneel, niet verplicht): vanaf € 95 per maand.</li>
+          </ul>
+
+          <h3>Doorlooptijd</h3>
+          <p>Circa 2 tot 4 weken na akkoord en zodra wij toegang tot OMS4Business hebben.</p>
+        </div>
+
+        <div class="prop-sign" id="prop-sign">
+          <h3>Akkoord en ondertekenen</h3>
+          <div class="grid-2">
+            <label>Naam<input type="text" id="sign-name" /></label>
+            <label>E-mail<input type="email" id="sign-email" /></label>
+          </div>
+          <label>Bedrijf<input type="text" id="sign-company" value="Fa Schadde van Dooren" /></label>
+
+          <div class="sign-pad-wrap">
+            <div class="sign-pad-head">
+              <span>Zet hier uw handtekening</span>
+              <button type="button" id="sign-clear" class="sign-clear">Wissen</button>
+            </div>
+            <canvas id="sign-pad" class="sign-pad"></canvas>
+          </div>
+          <label>of typ uw naam als handtekening<input type="text" id="sign-typed" placeholder="Optioneel, als u niet tekent" /></label>
+
+          <label class="sign-agree"><input type="checkbox" id="sign-agree" /> Ik ga akkoord met dit voorstel en geef opdracht tot de korte intake. De definitieve vaste prijs wordt daarna schriftelijk bevestigd.</label>
+
+          <div class="bk-error" id="sign-error"></div>
+          <button type="button" id="sign-submit" class="btn-primary">Onderteken en verstuur</button>
+        </div>
+
+        <div class="prop-done" id="prop-done">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#006935" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <h3 id="prop-done-title">Bedankt!</h3>
+          <p id="prop-done-text"></p>
+          <div class="prop-done-actions">
+            <button type="button" id="prop-download" class="btn-primary">Download contract opnieuw</button>
+            <button type="button" id="prop-done-close" class="btn-ghost">Sluiten</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="data.js?v=2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

@@ -237,6 +237,45 @@ footer.foot .tagline {
   padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
 }
 .btn-ghost:hover { background: #f3f6f2; }
+.btn-lime {
+  background: var(--lime); color: var(--navy-2); border: 0; border-radius: 9px;
+  padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.btn-lime:hover { filter: brightness(.96); }
+
+/* Proposal + e-sign modal */
+.prop-modal { max-width: 660px; display: flex; flex-direction: column; max-height: calc(100vh - 80px); }
+.prop-body { overflow-y: auto; padding: 20px 22px; }
+.prop-content { color: var(--text); font-size: 14px; line-height: 1.55; }
+.prop-content .prop-lead { font-size: 15px; color: var(--text); margin: 0 0 14px; }
+.prop-content h3 { font-family: var(--head-font); font-size: 20px; font-weight: 600; color: var(--navy); margin: 18px 0 6px; letter-spacing: .3px; }
+.prop-content ul { margin: 4px 0 8px; padding-left: 20px; }
+.prop-content li { margin-bottom: 5px; }
+.prop-content p { margin: 4px 0; }
+
+.prop-sign { margin-top: 18px; padding-top: 16px; border-top: 2px solid var(--lime); display: flex; flex-direction: column; gap: 12px; }
+.prop-sign h3 { font-family: var(--head-font); font-size: 21px; font-weight: 600; color: var(--navy); margin: 0; letter-spacing: .3px; }
+.prop-sign label { display: flex; flex-direction: column; font-size: 12.5px; font-weight: 600; color: var(--text); gap: 4px; }
+.prop-sign input[type="text"], .prop-sign input[type="email"] {
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; font-weight: 400;
+}
+.prop-sign input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,105,53,.15); }
+
+.sign-pad-wrap { border: 1px dashed var(--line); border-radius: 10px; padding: 8px; background: #fbfdfa; }
+.sign-pad-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.sign-clear { background: transparent; border: 0; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 12px; font-family: inherit; }
+.sign-clear:hover { text-decoration: underline; }
+.sign-pad { width: 100%; height: 140px; background: #fff; border: 1px solid var(--line); border-radius: 8px; display: block; touch-action: none; cursor: crosshair; }
+
+.sign-agree { flex-direction: row !important; align-items: flex-start; gap: 8px; font-weight: 400 !important; font-size: 13px !important; line-height: 1.4; }
+.sign-agree input { margin-top: 2px; }
+
+.prop-done { display: none; text-align: center; padding: 24px 10px; }
+.prop-done.show { display: block; }
+.prop-done h3 { font-family: var(--head-font); font-size: 24px; font-weight: 600; color: var(--navy); margin: 8px 0 6px; }
+.prop-done p { color: var(--text); font-size: 14px; margin: 0 auto 16px; max-width: 420px; line-height: 1.5; }
+.prop-done-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.prop-sign.hidden, .prop-content.hidden { display: none; }
 
 /* Modal */
 .modal-overlay {

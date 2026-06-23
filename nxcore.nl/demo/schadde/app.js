@@ -619,6 +619,105 @@ function wireAssistant() {
   });
 }
 
+// --- Voorstel + digitaal ondertekenen --------------------------------------
+const PROP = { drawn: false, ctx: null, lastPdf: null, lastFile: null };
+
+function propVal(id) { return document.getElementById(id).value.trim(); }
+
+function initSignPad() {
+  const c = document.getElementById("sign-pad");
+  if (!c) return;
+  const ratio = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  if (!rect.width) { requestAnimationFrame(initSignPad); return; }
+  c.width = Math.round(rect.width * ratio);
+  c.height = Math.round(rect.height * ratio);
+  const ctx = c.getContext("2d");
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#16331f";
+  PROP.ctx = ctx; PROP.drawn = false;
+  let drawing = false, lx = 0, ly = 0;
+  const pos = (e) => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  c.onpointerdown = (e) => { drawing = true; [lx, ly] = pos(e); c.setPointerCapture(e.pointerId); e.preventDefault(); };
+  c.onpointermove = (e) => { if (!drawing) return; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(x, y); ctx.stroke(); [lx, ly] = [x, y]; PROP.drawn = true; };
+  c.onpointerup = c.onpointerleave = () => { drawing = false; };
+}
+function clearSignPad() {
+  const c = document.getElementById("sign-pad");
+  if (PROP.ctx) PROP.ctx.clearRect(0, 0, c.width, c.height);
+  PROP.drawn = false;
+}
+
+function downloadPdf(base64, filename) {
+  try {
+    const bin = atob(base64), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename || "voorstel.pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) {}
+}
+
+function propOpen() {
+  document.getElementById("proposal-modal").classList.add("open");
+  document.querySelector(".prop-content").classList.remove("hidden");
+  document.getElementById("prop-sign").classList.remove("hidden");
+  document.getElementById("prop-done").classList.remove("show");
+  document.getElementById("sign-error").textContent = "";
+  requestAnimationFrame(initSignPad);
+}
+function propClose() { document.getElementById("proposal-modal").classList.remove("open"); }
+
+async function propSubmit() {
+  const name = propVal("sign-name"), email = propVal("sign-email");
+  const company = propVal("sign-company") || "Fa Schadde van Dooren", typed = propVal("sign-typed");
+  const agree = document.getElementById("sign-agree").checked;
+  const err = document.getElementById("sign-error");
+  if (!name) return (err.textContent = "Vul uw naam in.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return (err.textContent = "Vul een geldig e-mailadres in.");
+  if (!PROP.drawn && !typed) return (err.textContent = "Zet uw handtekening of typ uw naam.");
+  if (!agree) return (err.textContent = "Vink aan dat u akkoord gaat met het voorstel.");
+  err.textContent = "";
+
+  const sig = PROP.drawn ? document.getElementById("sign-pad").toDataURL("image/png") : "";
+  const btn = document.getElementById("sign-submit");
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "Bezig met versturen...";
+  let data = {};
+  try {
+    const r = await fetch("/api/schadde-sign", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, email, company, signature: sig, typedName: typed }),
+    });
+    data = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = data.error || "Er ging iets mis. Probeer het opnieuw."; btn.disabled = false; btn.textContent = label; return; }
+  } catch (e) {
+    err.textContent = "De service is nu niet bereikbaar. Probeer het later opnieuw."; btn.disabled = false; btn.textContent = label; return;
+  }
+  btn.disabled = false; btn.textContent = label;
+
+  PROP.lastPdf = data.pdf; PROP.lastFile = data.filename;
+  if (data.pdf) downloadPdf(data.pdf, data.filename);
+  document.querySelector(".prop-content").classList.add("hidden");
+  document.getElementById("prop-sign").classList.add("hidden");
+  document.getElementById("prop-done").classList.add("show");
+  document.getElementById("prop-done-title").textContent = `Bedankt, ${name}!`;
+  document.getElementById("prop-done-text").textContent = data.emailed
+    ? `Uw ondertekende voorstel is gedownload en een kopie is naar ${email} gestuurd. Wij nemen spoedig contact met u op voor de korte intake.`
+    : `Uw ondertekende voorstel is gedownload. Wij nemen spoedig contact met u op voor de korte intake.`;
+}
+
+function wireProposal() {
+  document.getElementById("open-proposal").addEventListener("click", propOpen);
+  document.getElementById("prop-close").addEventListener("click", propClose);
+  document.getElementById("prop-done-close").addEventListener("click", propClose);
+  document.getElementById("sign-clear").addEventListener("click", clearSignPad);
+  document.getElementById("sign-submit").addEventListener("click", propSubmit);
+  document.getElementById("prop-download").addEventListener("click", () => { if (PROP.lastPdf) downloadPdf(PROP.lastPdf, PROP.lastFile); });
+  document.getElementById("proposal-modal").addEventListener("click", (e) => { if (e.target.id === "proposal-modal") propClose(); });
+}
+
 // --- Boot ------------------------------------------------------------------
 function boot() {
   document.getElementById("today").textContent = fmtDateObj(REF_DATE);
@@ -626,6 +725,7 @@ function boot() {
   wireControls();
   wireBooking();
   wireAssistant();
+  wireProposal();
   refresh();
   // Keep the map correctly sized/zoomed when the browser window changes.
   let rt;
