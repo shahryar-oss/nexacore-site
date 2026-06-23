@@ -442,7 +442,7 @@ Levering in twee fasen:
 - Fase 1 — het dashboard (ontwerp en bouw), op te leveren als werkende demo.
 - Fase 2 — koppeling met OMS4Business, geocodering van adressen, migratie van historische verhuren, inlog voor het team, hosting opzetten en livegang.
 
-Investering: eenmalige bouw, richtprijs € 4.500 – € 6.500 (excl. btw). De definitieve vaste prijs wordt na een korte intake schriftelijk bevestigd, afhankelijk van de koppelingswijze met OMS4Business (directe API of export). Hosting: voor rekening van Schadde van Dooren, geschat € 10 – € 25 per maand. Onderhoud en ondersteuning zijn optioneel (vanaf € 95 per maand), nu niet verplicht.
+Investering (eenmalig, excl. btw): dashboard inclusief koppeling met OMS4Business, geocodering, migratie, inlog en hosting-opzet € 7.500 – € 9.500; AI-assistent € 2.500 – € 4.000; totaal € 10.000 – € 13.500. De definitieve vaste prijs wordt na een korte intake schriftelijk bevestigd, afhankelijk van de koppelingswijze met OMS4Business (directe API of export). Ter vergelijking: vergelijkbare maatwerkoplossingen met systeemkoppeling beginnen doorgaans vanaf € 15.000; deze oplossing is eenmalig en u bent eigenaar. Hosting: voor rekening van Schadde van Dooren, geschat € 10 – € 25 per maand. Onderhoud en ondersteuning zijn optioneel (vanaf € 95 per maand), nu niet verplicht.
 
 Doorlooptijd: circa 2 tot 4 weken na akkoord en zodra toegang tot OMS4Business beschikbaar is.
 

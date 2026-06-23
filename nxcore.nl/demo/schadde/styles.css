@@ -252,6 +252,7 @@ footer.foot .tagline {
 .prop-content ul { margin: 4px 0 8px; padding-left: 20px; }
 .prop-content li { margin-bottom: 5px; }
 .prop-content p { margin: 4px 0; }
+.prop-content .prop-anchor { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 8px; }
 
 .prop-sign { margin-top: 18px; padding-top: 16px; border-top: 2px solid var(--lime); display: flex; flex-direction: column; gap: 12px; }
 .prop-sign h3 { font-family: var(--head-font); font-size: 21px; font-weight: 600; color: var(--navy); margin: 0; letter-spacing: .3px; }
