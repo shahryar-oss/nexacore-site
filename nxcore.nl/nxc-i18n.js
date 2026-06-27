@@ -121,8 +121,8 @@
     "Strengths & values discovery": "Ontdek uw sterke punten & waarden",
     "Goal tracking that works": "Doelen bijhouden die werkt",
     "Your progress, A to Z": "Uw voortgang, van A tot Z",
-    "Get early access →": "Vraag vroege toegang aan →",
-    "Evidence-based · career coaching": "Onderbouwd · loopbaancoaching",
+    "Explore Ascend →": "Ontdek Ascend →",
+    "Evidence-based · free to start": "Onderbouwd · gratis te starten",
     // NexaMails
     "★ Our flagship product": "★ Ons vlaggenschipproduct",
     "Meet": "Maak kennis met",
