@@ -114,6 +114,15 @@
     "Dedicated AI & development team": "Toegewijd AI- en ontwikkelteam",
     "Enterprise security & compliance": "Beveiliging en compliance op ondernemingsniveau",
     "Long-term AI transformation programs": "Langlopende AI-transformatieprogramma's",
+    // Ascend
+    "★ New · AI career coach": "★ Nieuw · AI-loopbaancoach",
+    "Your personal AI career coach. listens, understands where you want to go, and guides you from zero to hero — turning ambition into tracked goals, clear next steps, and visible progress. Built on the evidence for what actually makes coaching work.": "Uw persoonlijke AI-loopbaancoach. luistert, begrijpt waar u naartoe wilt en begeleidt u van nul naar held — ambitie wordt omgezet in concrete doelen, heldere vervolgstappen en zichtbare voortgang. Gebouwd op het bewijs voor wat coaching écht laat werken.",
+    "Real coaching conversations": "Echte coachgesprekken",
+    "Strengths & values discovery": "Ontdek uw sterke punten & waarden",
+    "Goal tracking that works": "Doelen bijhouden die werkt",
+    "Your progress, A to Z": "Uw voortgang, van A tot Z",
+    "Get early access →": "Vraag vroege toegang aan →",
+    "Evidence-based · career coaching": "Onderbouwd · loopbaancoaching",
     // NexaMails
     "★ Our flagship product": "★ Ons vlaggenschipproduct",
     "Meet": "Maak kennis met",
