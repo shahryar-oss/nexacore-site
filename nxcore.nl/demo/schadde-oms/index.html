@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>Fa Schadde van Dooren - Rapportage & Overzicht</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Teko:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="styles.css?v=1"/>
+</head>
+<body>
+<div id="gate" class="gate">
+  <form id="gate-form" class="gate-card" autocomplete="off">
+    <img src="logo_original.png" alt="Schaddé van Dooren" style="height:42px"/>
+    <h2>Rapportage &amp; Overzicht</h2>
+    <p>Beveiligde demo. Voer de toegangscode in om verder te gaan.</p>
+    <input id="gate-code" type="password" placeholder="Toegangscode"/>
+    <div class="gate-err" id="gate-err"></div>
+    <button type="submit" class="btn-go">Openen</button>
+    <div class="gate-foot">Gebouwd door NexaCore</div>
+  </form>
+</div>
+<header class="topbar">
+  <div class="brand">
+    <img src="logo_original.png" alt="Schaddé van Dooren" style="height:46px"/>
+    <div>
+      <h1>Rapportage &amp; Overzicht</h1>
+      <p>Aanvulling op OMS4Business</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div id="period-label"></div>
+    <div class="powered">Gebouwd door <b>NexaCore</b></div>
+  </div>
+</header>
+
+<div class="tabs" id="app-tabs" style="display:none">
+  <button class="tab active" data-tab="rapportage">Rapportage</button>
+  <button class="tab" data-tab="locatie">Locatie-overzicht</button>
+</div>
+
+<div class="wrap" id="app-wrap" style="display:none">
+  <!-- RAPPORTAGE -->
+  <section id="view-rapportage">
+    <div class="toolbar">
+      <span><label>Periode</label></span>
+      <select id="f-period"></select>
+      <span><label>Groepeer op</label></span>
+      <div class="seg" id="groupby">
+        <button data-g="productgroep" class="active">Productgroep</button>
+        <button data-g="afvalstroom">Afvalstroom</button>
+        <button data-g="eural">Eural-code</button>
+      </div>
+      <div class="spacer"></div>
+      <span id="sel-pill"></span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-head"><h2>Afvalstromen</h2><span class="count" id="stream-count"></span></div>
+        <div style="max-height:calc(100vh - 360px);overflow:auto">
+          <table id="stream-table">
+            <thead><tr>
+              <th data-sort="key">Stroom</th>
+              <th class="num" data-sort="orders">Orders</th>
+              <th class="num" data-sort="ton">Gewicht (ton)</th>
+              <th class="num barcell" data-sort="omzet">Omzet (excl)</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2 id="detail-title">Per maand</h2><span class="count" id="detail-sub"></span></div>
+        <div id="detail-months"></div>
+        <div class="panel-head" style="background:#eef2ec"><h2 style="color:var(--navy)">Grootste klanten</h2></div>
+        <table id="top-customers"><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCATIE -->
+  <section id="view-locatie" class="hidden">
+    <div class="toolbar">
+      <span><label>Tonen</label></span>
+      <div class="seg" id="loc-filter">
+        <button data-l="alle" class="active">Alles</button>
+        <button data-l="order">Klantlocaties</button>
+        <button data-l="installatie">Vaste installaties</button>
+      </div>
+      <div class="spacer"></div>
+      <span class="note" id="loc-count"></span>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Kaart - waar staan de containers</h2><span class="count">Klik op een pin</span></div>
+      <div id="map"></div>
+      <div class="map-legend">
+        <span><span class="dot" style="background:#006935"></span>Klantlocatie (orders in periode)</span>
+        <span><span class="dot" style="background:#3a7bd5"></span>Vaste installatie (ondergronds/strand)</span>
+      </div>
+    </div>
+    <div class="note" id="loc-note">Locaties afgeleid uit de herkomst-adressen van orders en actieve contracten (geocodering via PDOK).</div>
+  </section>
+</div>
+
+<footer class="foot">
+  Op basis van actuele OMS4Business-gegevens. Gebouwd door <b>NexaCore</b>.
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>

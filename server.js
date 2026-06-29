@@ -478,6 +478,24 @@ Door dit voorstel elektronisch te ondertekenen gaat u akkoord met de uitvoering 
   res.json({ ok: true, emailed, filename, pdf: base64 });
 });
 
+/* ---------------------------------------------- /api/oms-demo (gated real data)
+   Serves the Schadde "OMS-aanvulling" demo data ONLY with the correct access code.
+   The data lives in oms-demo-data/ (outside the public static path), so it can
+   never be fetched directly as a static file. */
+const OMS_DEMO_CODE = process.env.OMS_DEMO_CODE || "";
+const OMS_DATA_DIR = path.join(__dirname, "oms-demo-data");
+app.post("/api/oms-demo", (req, res) => {
+  if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0").split(",")[0].trim();
+  if (rateLimited(ip)) return res.status(429).json({ error: "Te veel pogingen — probeer het zo opnieuw." });
+  const code = String(req.body.code || "").trim();
+  if (code !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  try {
+    const read = (f) => JSON.parse(fs.readFileSync(path.join(OMS_DATA_DIR, f), "utf8"));
+    res.json({ orders: read("orders.json"), contracts: read("contracts.json"), locations: read("locations.json") });
+  } catch (e) { console.error("[oms-demo]", e.message); return res.status(500).json({ error: "Gegevens niet beschikbaar." }); }
+});
+
 /* ------------------------------------------------------------------ static */
 const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often
 app.use(express.static(SITE_DIR, {
