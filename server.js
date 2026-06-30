@@ -561,39 +561,66 @@ app.post("/api/oms-probe", async (req, res) => {
   if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
   if (!OMS_API_KEY) return res.status(503).json({ error: "Geen API-sleutel." });
   const out = {};
+  const arr = (b) => Array.isArray(b) ? b : (b && b.data) || [];
+  // addr presence only — never values. records lat/lng per address-schema type.
+  const addrPresence = (a) => !a || typeof a !== "object" ? String(a) : { keys: Object.keys(a), street: filled2(a.street), city: filled2(a.city), postal: filled2(a.postalCode || a.postal_code), lat: filled2(a.lat || a.latitude), lng: filled2(a.lng || a.longitude), formatted: filled2(a.formatted) };
   try {
-    const ao = await omsAuthGet2("/v1/admin/orders?per_page=40&page=1");
-    const list = Array.isArray(ao.body) ? ao.body : (ao.body && ao.body.data) || [];
-    const o0 = list[0] || {};
-    const shape = (v) => v == null ? String(v) : (typeof v === "object" ? (Array.isArray(v) ? "[" + (v[0] ? Object.keys(v[0]).join(",") : "") + "]" : Object.keys(v).join(",")) : typeof v + ":" + String(v).slice(0, 40));
-    const mask = (a) => !a || typeof a !== "object" ? a : { keys: Object.keys(a), has_street: filled2(a.street), has_city: filled2(a.city), has_postal: filled2(a.postalCode || a.postal_code), has_lat: filled2(a.lat || a.latitude), has_lng: filled2(a.lng || a.longitude), has_formatted: filled2(a.formatted) };
+    // ---- baseline: admin orders, no parameter ----
+    const base = await omsAuthGet2("/v1/admin/orders?per_page=40&page=1");
+    const list = arr(base.body); const o0 = list[0] || {};
+    const it0 = (o0.orderItems || [])[0] || {};
     const wnSample = (() => { for (const o of list) for (const it of (o.orderItems || [])) if (filled2(it.wasteNumber)) return it.wasteNumber; return null; })();
-    out.admin_orders = {
-      status: ao.status, n: list.length,
-      location_shape: shape(o0.location),
-      location_address: mask(o0.location && o0.location.address),
-      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => (it.unit && (it.unit.name || it.unit.code)) || (typeof it.unit === "string" ? it.unit : JSON.stringify(it.unit)))))].slice(0, 20),
-      item_wasteNumber_shape: typeof wnSample === "object" && wnSample ? { keys: Object.keys(wnSample), euralCode: wnSample.euralCode, number: wnSample.number } : ("ref:" + JSON.stringify(wnSample)),
+    out.baseline = {
+      status: base.status, n: list.length,
+      order_keys: Object.keys(o0),
+      location_keys: o0.location ? Object.keys(o0.location) : null,
+      location_address: addrPresence(o0.location && o0.location.address),
+      contact_present: filled2(o0.contact), contact_keys: o0.contact ? Object.keys(o0.contact) : null,
+      contact_addresses_present: filled2(o0.contact && o0.contact.addresses),
+      deliveryAddress: addrPresence(o0.deliveryAddress), destinationAddress: addrPresence(o0.destinationAddress),
+      item_keys: Object.keys(it0),
+      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => typeof it.unit === "string" ? it.unit : (it.unit && (it.unit.name || it.unit.code)) || JSON.stringify(it.unit))))].slice(0, 20),
+      item_wasteNumber: typeof wnSample === "object" && wnSample ? { keys: Object.keys(wnSample), eural_obj: wnSample.euralCode, number: wnSample.number } : "ref:" + JSON.stringify(wnSample),
+      item_weightMeasurements_present: filled2(it0.weightMeasurements),
     };
-    // does the admin endpoint hydrate relations on request? (in-browser Claude's test, run server-side)
-    out.admin_include = [];
-    for (const q of ["?per_page=3&with=contact.addresses,orderItems.weightMeasurements,deliveryAddress", "?per_page=3&include=contact.addresses,orderItems.weightMeasurements"]) {
+    // ---- include/with syntax variants vs baseline; capture ignored-param signals ----
+    out.include_variants = [];
+    const variants = [
+      "?per_page=3&with=contact.addresses,orderItems.weightMeasurements,orderItems.wasteNumber",
+      "?per_page=3&include=contact.addresses,orderItems.weightMeasurements,orderItems.wasteNumber",
+      "?per_page=3&with=deliveryAddress,destinationAddress",
+      "?per_page=3&with[]=contact.addresses&with[]=orderItems.weightMeasurements",
+    ];
+    for (const q of variants) {
       const r = await omsAuthGet2("/v1/admin/orders" + q);
-      const a = (Array.isArray(r.body) ? r.body : (r.body && r.body.data) || [])[0] || {};
-      const it = (a.orderItems || [])[0] || {};
-      out.admin_include.push({ q, status: r.status, contact_addresses: filled2(a.contact && a.contact.addresses) ? "FILLED" : "empty", item_weightMeasurements: filled2(it.weightMeasurements) ? "FILLED" : "empty", deliveryAddress: filled2(a.deliveryAddress) ? "FILLED" : "empty" });
+      const a = arr(r.body)[0] || {}; const it = (a.orderItems || [])[0] || {};
+      out.include_variants.push({
+        q, status: r.status,
+        signal: r.body && typeof r.body === "object" && !Array.isArray(r.body) ? { has_errors: !!r.body.errors, has_message: !!r.body.message, meta_keys: r.body.meta ? Object.keys(r.body.meta) : null } : null,
+        contact_addresses: filled2(a.contact && a.contact.addresses) ? "FILLED" : "empty",
+        item_weightMeasurements: filled2(it.weightMeasurements) ? "FILLED" : "empty",
+        deliveryAddress: filled2(a.deliveryAddress) ? "FILLED" : "empty",
+      });
     }
+    // ---- contact path (priority map source): /v1/contacts/{uuid}.addresses[] lat/lng ----
+    const nao = await omsAuthGet2("/v1/orders?per_page=10"); // non-admin order carries contact_uuid
+    const cu = arr(nao.body).find((o) => o.contact_uuid)?.contact_uuid;
+    if (cu) {
+      const c = await omsAuthGet2("/v1/contacts/" + cu);
+      const co = (c.body && (c.body.data || c.body)) || {}; const ca = (co.addresses || [])[0];
+      out.contact_path = { status: c.status, n_addresses: Array.isArray(co.addresses) ? co.addresses.length : "none", first_address: addrPresence(ca), flags: ca ? { is_work: ca.is_work, is_depot: ca.is_depot, is_general: ca.is_general, is_invoice: ca.is_invoice } : null };
+    } else out.contact_path = { skipped: "no contact_uuid" };
+    // ---- waste-numbers reference ----
     const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
-    const wl = Array.isArray(wn.body) ? wn.body : (wn.body && wn.body.data) || [];
-    out.waste_numbers = { status: wn.status, n: wl.length, sample: wl[0] ? { euralCode: wl[0].euralCode, number: wl[0].number, processingMethod: wl[0].processingMethod, product: wl[0].product && (wl[0].product.name || wl[0].product) } : null };
-    // find an order that actually has weighings
+    const wl = arr(wn.body);
+    out.waste_numbers = { status: wn.status, n: wl.length, sample: wl[0] ? { euralCode: wl[0].euralCode, number: wl[0].number, processingMethod: wl[0].processingMethod } : null };
+    // ---- weight-measurements shape (one order that has weighings) ----
     out.weight_measurements = { searched: 0, found: null };
     for (const o of list.slice(0, 25)) {
-      if (!o.uuid) continue;
-      out.weight_measurements.searched++;
+      if (!o.uuid) continue; out.weight_measurements.searched++;
       const wm = await omsAuthGet2("/v1/weight-measurements/" + o.uuid);
-      const wmd = Array.isArray(wm.body) ? wm.body : (wm.body && wm.body.data) || [];
-      if (Array.isArray(wmd) && wmd.length) { out.weight_measurements.found = { status: wm.status, n: wmd.length, keys: Object.keys(wmd[0]), sample: { net: wmd[0].net || wmd[0].netto || wmd[0].netWeight, unit: wmd[0].unit, gross: wmd[0].gross } }; break; }
+      const wmd = arr(wm.body);
+      if (wmd.length) { out.weight_measurements.found = { keys: Object.keys(wmd[0]), has_netto: filled2(wmd[0].weight_netto), has_unit: filled2(wmd[0].unit) }; break; }
     }
     res.json(out);
   } catch (e) { console.error("[oms-probe]", e.message); return res.status(502).json({ error: e.message, partial: out }); }
