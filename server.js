@@ -16,6 +16,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const dns = require("dns").promises;
 const net = require("net");
 const { emailHTML, buildPDF } = require("./lib/notify");
@@ -501,8 +502,10 @@ app.post("/api/oms-demo", (req, res) => {
    the same access code. Cached briefly to limit API calls. Key never leaves the server. */
 const OMS_API_KEY = process.env.OMS_API_KEY || "";
 const OMS_API_BASE = "https://login.oms4business.com/api";
-const OMS_GEO = (() => { try { return JSON.parse(fs.readFileSync(path.join(OMS_DATA_DIR, "geocode-cache.json"), "utf8")); } catch (e) { return {}; } })();
+const OMS_GEO_FILE = path.join(os.tmpdir(), "oms-geocode-cache.json"); // off-repo: holds customer coordinates
+const OMS_GEO = (() => { try { return JSON.parse(fs.readFileSync(OMS_GEO_FILE, "utf8")); } catch (e) { return {}; } })();
 let omsLiveCache = { at: 0, data: null };
+let omsBuilding = false;
 async function omsFetchAll(p) {
   const out = []; let page = 1;
   for (;;) {
@@ -545,17 +548,18 @@ async function geocodeAll(addrs) {
     const g = await pdokGeocode(a);
     if (g) { GEOCACHE[k] = g; out[a] = g; }
   }
-  try { fs.writeFileSync(path.join(OMS_DATA_DIR, "geocode-cache.json"), JSON.stringify(GEOCACHE)); } catch (e) {}
+  try { fs.writeFileSync(OMS_GEO_FILE, JSON.stringify(GEOCACHE)); } catch (e) {}
   return out;
 }
 const unitIsTon = (u) => /ton/i.test(typeof u === "string" ? u : (u && (u.name || u.code)) || "");
 
-app.post("/api/oms-live", async (req, res) => {
-  if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
-  if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
-  if (!OMS_API_KEY) return res.status(503).json({ error: "Live koppeling is nog niet geconfigureerd." });
+// Builds the full live dataset (heavy: ~180 paginated calls + geocoding). Runs in the
+// BACKGROUND so user requests never wait for it. A concurrency guard prevents stacked builds.
+async function buildOmsLive() {
+  if (omsBuilding) return;
+  omsBuilding = true;
+  const t0 = Date.now();
   try {
-    if (omsLiveCache.data && Date.now() - omsLiveCache.at < 21600000) return res.json({ cached: true, ...omsLiveCache.data }); // 6h cache (full build is heavy)
     const [adminOrders, naOrders, wasteNums, contactsList, contractsRaw] = await Promise.all([
       omsFetchAll("/v1/admin/orders"), omsFetchAll("/v1/orders"), omsFetchAll("/v1/admin/waste-numbers"),
       omsFetchAll("/v1/contacts"), omsFetchAll("/v1/contracts"),
@@ -622,9 +626,27 @@ app.post("/api/oms-live", async (req, res) => {
     }).filter(Boolean);
     const data = { orders, contracts, locations, counts: { orders: orders.length, locations: locations.length, contracts: contracts.length } };
     omsLiveCache = { at: Date.now(), data };
-    res.json({ cached: false, ...data });
-  } catch (e) { console.error("[oms-live]", e.message); return res.status(502).json({ error: "Live data niet beschikbaar: " + e.message }); }
+    console.log(`[oms-live] snapshot built in ${Math.round((Date.now() - t0) / 1000)}s:`, JSON.stringify(data.counts));
+  } catch (e) { console.error("[oms-live] build failed:", e.message); }
+  finally { omsBuilding = false; }
+}
+
+app.post("/api/oms-live", (req, res) => {
+  if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
+  if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  if (!OMS_API_KEY) return res.status(503).json({ error: "Live koppeling is nog niet geconfigureerd." });
+  // Serve the prepared snapshot instantly. Refresh in the background when stale (>6h).
+  if (omsLiveCache.data) {
+    if (Date.now() - omsLiveCache.at > 21600000 && !omsBuilding) buildOmsLive();
+    return res.json({ cached: true, builtAt: omsLiveCache.at, ...omsLiveCache.data });
+  }
+  // No snapshot yet (cold boot): kick off the build and tell the client to retry shortly.
+  if (!omsBuilding) buildOmsLive();
+  return res.status(202).json({ building: true, error: "Live gegevens worden voorbereid (eenmalig, circa 2-3 minuten). Een moment geduld." });
 });
+
+// Warm the snapshot on boot so the first visitor never waits for a cold build.
+if (OMS_API_KEY && OMS_DEMO_CODE) setTimeout(() => { buildOmsLive(); }, 3000);
 
 /* ------------------------------------------------------------------ static */
 const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often

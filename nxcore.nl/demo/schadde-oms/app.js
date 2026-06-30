@@ -187,6 +187,7 @@ function renderDashboard(){
 async function unlock(code){
   const r=await fetch("/api/oms-live",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});
   const d=await r.json().catch(()=>({}));
+  if(r.status===202||d.building) return {building:true,msg:d.error};
   if(!r.ok) throw new Error(d.error||"Toegang geweigerd.");
   return d;
 }
@@ -202,11 +203,15 @@ function boot(){
     const code=document.getElementById("gate-code").value.trim();
     const err=document.getElementById("gate-err"); err.textContent="";
     const btn=f.querySelector("button"); btn.disabled=true; const lbl=btn.textContent; btn.textContent="Live gegevens laden...";
-    try{
-      const d=await unlock(code);
-      ORDERS=d.orders||[]; CONTRACTS=d.contracts||[]; LOCS=d.locations||null;
-      showApp(); wire(); renderAll(); renderDashboard();
-    }catch(ex){ err.textContent=ex.message; btn.disabled=false; btn.textContent=lbl; }
+    const attempt=async()=>{
+      try{
+        const d=await unlock(code);
+        if(d.building){ err.style.color="var(--muted)"; err.textContent=d.msg||"Live gegevens worden voorbereid, een moment..."; btn.textContent="Voorbereiden..."; setTimeout(attempt,12000); return; }
+        err.style.color=""; ORDERS=d.orders||[]; CONTRACTS=d.contracts||[]; LOCS=d.locations||null;
+        showApp(); wire(); renderAll(); renderDashboard();
+      }catch(ex){ err.style.color=""; err.textContent=ex.message; btn.disabled=false; btn.textContent=lbl; }
+    };
+    attempt();
   });
   document.getElementById("gate-code").focus();
 }
