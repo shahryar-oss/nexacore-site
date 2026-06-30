@@ -566,11 +566,14 @@ app.post("/api/oms-probe", async (req, res) => {
     const list = Array.isArray(ao.body) ? ao.body : (ao.body && ao.body.data) || [];
     const o0 = list[0] || {};
     const shape = (v) => v == null ? String(v) : (typeof v === "object" ? (Array.isArray(v) ? "[" + (v[0] ? Object.keys(v[0]).join(",") : "") + "]" : Object.keys(v).join(",")) : typeof v + ":" + String(v).slice(0, 40));
+    const mask = (a) => !a || typeof a !== "object" ? a : { keys: Object.keys(a), has_street: filled2(a.street), has_city: filled2(a.city), has_postal: filled2(a.postalCode || a.postal_code), has_lat: filled2(a.lat || a.latitude), has_lng: filled2(a.lng || a.longitude), has_formatted: filled2(a.formatted) };
+    const wnSample = (() => { for (const o of list) for (const it of (o.orderItems || [])) if (filled2(it.wasteNumber)) return it.wasteNumber; return null; })();
     out.admin_orders = {
       status: ao.status, n: list.length,
       location_shape: shape(o0.location),
-      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => (it.unit && (it.unit.name || it.unit.code)) || JSON.stringify(it.unit))))].slice(0, 20),
-      item_sample: (() => { const it = (o0.orderItems || [])[0] || {}; return { unit: it.unit, quantity: it.quantity, product: it.product && it.product.name, service: it.serviceType && it.serviceType.name, wasteNumber: it.wasteNumber }; })(),
+      location_address: mask(o0.location && o0.location.address),
+      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => (it.unit && (it.unit.name || it.unit.code)) || (typeof it.unit === "string" ? it.unit : JSON.stringify(it.unit)))))].slice(0, 20),
+      item_wasteNumber_shape: typeof wnSample === "object" && wnSample ? { keys: Object.keys(wnSample), euralCode: wnSample.euralCode, number: wnSample.number } : ("ref:" + JSON.stringify(wnSample)),
     };
     const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
     const wl = Array.isArray(wn.body) ? wn.body : (wn.body && wn.body.data) || [];
