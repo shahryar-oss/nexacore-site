@@ -549,6 +549,51 @@ app.post("/api/oms-live", async (req, res) => {
   } catch (e) { console.error("[oms-live]", e.message); return res.status(502).json({ error: "Live data niet beschikbaar: " + e.message }); }
 });
 
+/* ----------------------------------- /api/oms-probe (TEMPORARY diagnostic, read-only)
+   Confirms which rich fields the admin orders endpoint inlines (weight/eural/afvalstroom)
+   so the live demo can map them. Masks PII — returns key names + populated/empty only. */
+function omsAuthGet2(p) {
+  return fetch(`${OMS_API_BASE}${p}`, { headers: { Authorization: `Bearer ${OMS_API_KEY}`, Accept: "application/json" } })
+    .then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
+}
+const filled2 = (v) => v !== null && v !== undefined && !(typeof v === "string" && v.trim() === "") && !(Array.isArray(v) && v.length === 0);
+app.post("/api/oms-probe", async (req, res) => {
+  if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  if (!OMS_API_KEY) return res.status(503).json({ error: "Geen API-sleutel." });
+  const out = {};
+  try {
+    const ao = await omsAuthGet2("/v1/admin/orders?per_page=10&page=1");
+    const list = Array.isArray(ao.body) ? ao.body : (ao.body && ao.body.data) || [];
+    const o0 = list[0] || {};
+    out.admin_orders = {
+      status: ao.status, n: list.length, keys: Object.keys(o0),
+      first_item_keys: Array.isArray(o0.orderItems) && o0.orderItems[0] ? Object.keys(o0.orderItems[0]) : (Array.isArray(o0.order_items) && o0.order_items[0] ? Object.keys(o0.order_items[0]) : "no orderItems"),
+      rich: list.slice(0, 6).map((o) => {
+        const it = (o.orderItems || o.order_items || [])[0] || {};
+        const probe = (obj, names) => { for (const n of names) if (filled2(obj[n])) return n + "=FILLED"; return "empty"; };
+        return {
+          nr: o.order_nr,
+          weight: probe(o, ["netto_weight", "nettoWeight", "weight", "net_weight"]) + " / item:" + probe(it, ["netto_weight", "nettoWeight", "weight", "quantity"]),
+          eural: probe(o, ["eural", "euralCode", "eural_code"]) + " / item:" + probe(it, ["eural", "euralCode", "wasteNumber", "waste_number"]),
+          afvalstroom: probe(o, ["wasteNumber", "waste_number", "afvalstroomnummer"]) + " / item:" + probe(it, ["wasteNumber", "waste_number", "afvalstroomnummer"]),
+          categorie: probe(o, ["category", "categorie", "isCompany", "is_company"]),
+          productgroep: probe(o, ["productGroup", "product_group", "productgroep"]) + " prod:" + (o.product && o.product.name ? "FILLED" : "empty"),
+        };
+      }),
+    };
+    const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
+    const wl = Array.isArray(wn.body) ? wn.body : (wn.body && wn.body.data) || [];
+    out.waste_numbers = { status: wn.status, n: wl.length, keys: wl[0] ? Object.keys(wl[0]) : [] };
+    const uuid = list.find((o) => o.uuid)?.uuid;
+    if (uuid) {
+      const wm = await omsAuthGet2("/v1/weight-measurements/" + uuid);
+      const wmd = Array.isArray(wm.body) ? wm.body : (wm.body && wm.body.data) || wm.body;
+      out.weight_measurements = { status: wm.status, sample_keys: Array.isArray(wmd) ? (wmd[0] ? Object.keys(wmd[0]) : "empty array") : (wmd ? Object.keys(wmd) : "null") };
+    }
+    res.json(out);
+  } catch (e) { console.error("[oms-probe]", e.message); return res.status(502).json({ error: e.message, partial: out }); }
+});
+
 /* ------------------------------------------------------------------ static */
 const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often
 app.use(express.static(SITE_DIR, {
