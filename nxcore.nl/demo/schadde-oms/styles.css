@@ -2,7 +2,7 @@
   --navy:#006935; --navy-2:#00501f; --accent:#006935; --accent-dark:#00501f;
   --grass:#529915; --lime:#afc729; --bg:#f3f6f2; --card:#fff; --line:#e2e9e2;
   --text:#1f2a24; --muted:#6b776e; --amber:#e0962f; --red:#e4572e;
-  --head-font:"Teko","Inter",system-ui,sans-serif;
+  --head-font:"Inter","Segoe UI",system-ui,Arial,sans-serif;
   --shadow:0 1px 3px rgba(0,50,22,.08),0 6px 18px rgba(0,50,22,.06);
 }
 *{box-sizing:border-box} html,body{margin:0;padding:0}
@@ -33,7 +33,7 @@ header.topbar{background:#fff;border-bottom:3px solid var(--lime);padding:12px 2
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
 .kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
-.kpi .value{font-family:var(--head-font);font-size:34px;line-height:1;font-weight:600;margin-top:6px;color:var(--navy)}
+.kpi .value{font-family:var(--head-font);font-size:32px;line-height:1.05;font-weight:700;letter-spacing:-.5px;margin-top:6px;color:var(--navy)}
 .kpi .value .unit{font-size:14px;font-weight:600;color:var(--muted);margin-left:3px}
 .kpi .sub{font-size:12px;color:var(--muted);margin-top:3px}
 
