@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>Fa Schadde van Dooren - Live overzicht</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Teko:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="styles.css?v=1"/>
+</head>
+<body>
+<div id="gate" class="gate">
+  <form id="gate-form" class="gate-card" autocomplete="off">
+    <img src="logo_original.png" alt="Schaddé van Dooren" style="height:42px"/>
+    <h2>Live overzicht</h2>
+    <p>Beveiligde demo, live gekoppeld met OMS4Business. Voer de toegangscode in.</p>
+    <input id="gate-code" type="password" placeholder="Toegangscode"/>
+    <div class="gate-err" id="gate-err"></div>
+    <button type="submit" class="btn-go">Openen</button>
+    <div class="gate-foot">Gebouwd door NexaCore</div>
+  </form>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="logo_original.png" alt="Schaddé van Dooren" style="height:46px"/>
+    <div>
+      <h1>Live overzicht</h1>
+      <p>Live gekoppeld met OMS4Business</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div id="live-status"></div>
+    <div class="powered">Gebouwd door <b>NexaCore</b></div>
+  </div>
+</header>
+
+<div class="tabs" id="app-tabs" style="display:none">
+  <button class="tab active" data-tab="rapportage">Rapportage</button>
+  <button class="tab" data-tab="containers">Containers</button>
+</div>
+
+<div class="wrap" id="app-wrap" style="display:none">
+  <section id="view-rapportage">
+    <div class="toolbar">
+      <span><label>Periode</label></span>
+      <select id="f-period"></select>
+      <span><label>Groepeer op</label></span>
+      <div class="seg" id="groupby">
+        <button data-g="service" class="active">Soort werk</button>
+        <button data-g="product">Product</button>
+      </div>
+      <div class="spacer"></div>
+      <span id="sel-pill"></span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="panel-head"><h2 id="stream-title">Soort werk</h2><span class="count" id="stream-count"></span></div>
+        <div style="max-height:calc(100vh - 360px);overflow:auto">
+          <table id="stream-table">
+            <thead><tr>
+              <th data-sort="key">Categorie</th>
+              <th class="num" data-sort="orders">Orders</th>
+              <th class="num barcell" data-sort="omzet">Omzet (excl)</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2 id="detail-title">Per maand</h2><span class="count"></span></div>
+        <div id="detail-months"></div>
+        <div class="panel-head" style="background:#eef2ec"><h2 style="color:var(--navy)">Grootste klanten</h2></div>
+        <table id="top-customers"><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-containers" class="hidden">
+    <div class="toolbar">
+      <div class="search" style="flex:1 1 260px;position:relative">
+        <input id="c-search" type="text" placeholder="Zoek op containernummer of type..." style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit"/>
+      </div>
+      <div class="spacer"></div>
+      <span class="note" id="c-count"></span>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Containerregister</h2><span class="count">live uit OMS</span></div>
+      <div style="max-height:calc(100vh - 320px);overflow:auto">
+        <table id="c-table">
+          <thead><tr><th>Nummer</th><th>Type</th><th>Status</th><th>RFID</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="note">Let op: OMS legt geen actuele locatie per container vast (het veld is leeg). Een betrouwbaar locatie-overzicht per fysieke container vraagt om unieke scanbare codes — zie het voorstel.</div>
+    </div>
+  </section>
+</div>
+
+<footer class="foot">
+  Live gekoppeld met OMS4Business via de beveiligde API. Gebouwd door <b>NexaCore</b>.
+</footer>
+
+<script src="app.js?v=1"></script>
+</body>
+</html>

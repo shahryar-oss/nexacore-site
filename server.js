@@ -501,6 +501,7 @@ app.post("/api/oms-demo", (req, res) => {
    the same access code. Cached briefly to limit API calls. Key never leaves the server. */
 const OMS_API_KEY = process.env.OMS_API_KEY || "";
 const OMS_API_BASE = "https://login.oms4business.com/api";
+const OMS_GEO = (() => { try { return JSON.parse(fs.readFileSync(path.join(OMS_DATA_DIR, "geocode-cache.json"), "utf8")); } catch (e) { return {}; } })();
 let omsLiveCache = { at: 0, data: null };
 async function omsFetchAll(p) {
   const out = []; let page = 1;
