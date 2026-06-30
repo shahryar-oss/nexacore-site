@@ -575,6 +575,14 @@ app.post("/api/oms-probe", async (req, res) => {
       item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => (it.unit && (it.unit.name || it.unit.code)) || (typeof it.unit === "string" ? it.unit : JSON.stringify(it.unit)))))].slice(0, 20),
       item_wasteNumber_shape: typeof wnSample === "object" && wnSample ? { keys: Object.keys(wnSample), euralCode: wnSample.euralCode, number: wnSample.number } : ("ref:" + JSON.stringify(wnSample)),
     };
+    // does the admin endpoint hydrate relations on request? (in-browser Claude's test, run server-side)
+    out.admin_include = [];
+    for (const q of ["?per_page=3&with=contact.addresses,orderItems.weightMeasurements,deliveryAddress", "?per_page=3&include=contact.addresses,orderItems.weightMeasurements"]) {
+      const r = await omsAuthGet2("/v1/admin/orders" + q);
+      const a = (Array.isArray(r.body) ? r.body : (r.body && r.body.data) || [])[0] || {};
+      const it = (a.orderItems || [])[0] || {};
+      out.admin_include.push({ q, status: r.status, contact_addresses: filled2(a.contact && a.contact.addresses) ? "FILLED" : "empty", item_weightMeasurements: filled2(it.weightMeasurements) ? "FILLED" : "empty", deliveryAddress: filled2(a.deliveryAddress) ? "FILLED" : "empty" });
+    }
     const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
     const wl = Array.isArray(wn.body) ? wn.body : (wn.body && wn.body.data) || [];
     out.waste_numbers = { status: wn.status, n: wl.length, sample: wl[0] ? { euralCode: wl[0].euralCode, number: wl[0].number, processingMethod: wl[0].processingMethod, product: wl[0].product && (wl[0].product.name || wl[0].product) } : null };
