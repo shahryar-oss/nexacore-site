@@ -1,6 +1,6 @@
 // OMS-aanvulling demo - runs on real OMS4Business exports (local only).
 let ORDERS=[], CONTRACTS=[], LOCS=null;
-const state={period:"alle", groupBy:"productgroep", selected:null, sortKey:"omzet", sortDir:-1, locFilter:"alle"};
+const state={fYear:"alle", fPart:"all", fDay:"", groupBy:"productgroep", selected:null, sortKey:"omzet", sortDir:-1, locFilter:"alle"};
 const NLM=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const eur=n=>"€ "+Math.round(n||0).toLocaleString("nl-NL");
 const ton=n=>(n/1000).toLocaleString("nl-NL",{maximumFractionDigits:1});
@@ -11,7 +11,24 @@ function groupVal(o){
   if(state.groupBy==="eural") return o.eural||"(geen Eural)";
   return o.productgroep||"Onbekend";
 }
-function inPeriod(o){ return state.period==="alle" || (o.uitvoerdatum||"").startsWith(state.period); }
+function matchPeriod(o){
+  const dt=o.uitvoerdatum||"";
+  if(state.fDay) return dt===state.fDay;
+  if(!dt) return state.fYear==="alle";
+  if(state.fYear==="alle") return true;
+  if(dt.slice(0,4)!==state.fYear) return false;
+  const mo=+dt.slice(5,7), p=state.fPart;
+  if(p==="all") return true;
+  if(p==="h1") return mo<=6;
+  if(p==="h2") return mo>=7;
+  if(p==="q1") return mo<=3;
+  if(p==="q2") return mo>=4&&mo<=6;
+  if(p==="q3") return mo>=7&&mo<=9;
+  if(p==="q4") return mo>=10;
+  if(/^\d\d$/.test(p)) return dt.slice(5,7)===p;
+  return true;
+}
+function inPeriod(o){ return matchPeriod(o); }
 function monthKey(o){ return (o.uitvoerdatum||"").slice(0,7); }
 
 function periodOrders(){ return ORDERS.filter(inPeriod); }
@@ -118,14 +135,51 @@ function renderMap(){
 }
 
 // ---- wiring ----
+// ---- period filter (year / half / quarter / month / day) ----
+const PART_OPTS=[["all","Heel jaar"],["h1","1e helft (jan-jun)"],["h2","2e helft (jul-dec)"],
+  ["q1","Q1 (jan-mrt)"],["q2","Q2 (apr-jun)"],["q3","Q3 (jul-sep)"],["q4","Q4 (okt-dec)"],
+  ["01","Januari"],["02","Februari"],["03","Maart"],["04","April"],["05","Mei"],["06","Juni"],
+  ["07","Juli"],["08","Augustus"],["09","September"],["10","Oktober"],["11","November"],["12","December"]];
+function fillPeriodControls(){
+  const years=[...new Set(ORDERS.map(o=>(o.uitvoerdatum||"").slice(0,4)).filter(Boolean))].sort();
+  const yearOpts=`<option value="alle">Alle jaren</option>`+years.map(y=>`<option value="${y}">${y}</option>`).join("");
+  const partOpts=PART_OPTS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+  const dates=ORDERS.map(o=>o.uitvoerdatum).filter(Boolean).sort();
+  ["d","f"].forEach(p=>{
+    const y=document.getElementById(p+"-year"); if(y) y.innerHTML=yearOpts;
+    const pa=document.getElementById(p+"-part"); if(pa) pa.innerHTML=partOpts;
+    const d=document.getElementById(p+"-day"); if(d){ d.min=dates[0]||""; d.max=dates.at(-1)||""; }
+  });
+  syncPeriodControls();
+}
+function periodLabel(){
+  if(state.fDay) return state.fDay;
+  if(state.fYear==="alle") return "Alle jaren";
+  if(/^\d\d$/.test(state.fPart)) return NLM[+state.fPart-1]+" "+state.fYear;
+  const suf={all:"",h1:" H1",h2:" H2",q1:" Q1",q2:" Q2",q3:" Q3",q4:" Q4"}[state.fPart]||"";
+  return state.fYear+suf;
+}
+function syncPeriodControls(){
+  ["d","f"].forEach(p=>{
+    const y=document.getElementById(p+"-year"); if(y){ y.value=state.fYear; y.disabled=!!state.fDay; }
+    const pa=document.getElementById(p+"-part"); if(pa){ pa.value=state.fPart; pa.disabled=state.fYear==="alle"||!!state.fDay; }
+    const d=document.getElementById(p+"-day"); if(d) d.value=state.fDay;
+  });
+  const lbl=document.getElementById("period-label"); if(lbl) lbl.textContent="Periode: "+periodLabel();
+}
+function onPeriodChange(){ syncPeriodControls(); renderAll(); renderDashboard(); }
+function wirePeriod(){
+  ["d","f"].forEach(p=>{
+    const y=document.getElementById(p+"-year"); if(y) y.onchange=e=>{ state.fYear=e.target.value; state.fDay=""; if(state.fYear==="alle") state.fPart="all"; onPeriodChange(); };
+    const pa=document.getElementById(p+"-part"); if(pa) pa.onchange=e=>{ state.fPart=e.target.value; state.fDay=""; onPeriodChange(); };
+    const d=document.getElementById(p+"-day"); if(d) d.onchange=e=>{ state.fDay=e.target.value; onPeriodChange(); };
+    const r=document.getElementById(p+"-reset"); if(r) r.onclick=()=>{ state.fYear="alle"; state.fPart="all"; state.fDay=""; onPeriodChange(); };
+  });
+}
+
 function wire(){
-  const ps=document.getElementById("f-period");
-  const months=[...new Set(ORDERS.map(monthKey).filter(Boolean))].sort();
-  ps.innerHTML=`<option value="alle">Alle (${months[0]||""} t/m ${months.at(-1)||""})</option>`+
-    months.map(m=>{const[y,mm]=m.split("-");return `<option value="${m}">${NLM[+mm-1]} ${y}</option>`;}).join("");
-  ps.onchange=e=>{state.period=e.target.value;renderAll();};
-  const dp=document.getElementById("d-period");
-  if(dp){ dp.innerHTML=ps.innerHTML; dp.onchange=()=>renderDashboard(); }
+  fillPeriodControls();
+  wirePeriod();
   document.querySelectorAll("#groupby button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#groupby button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); state.groupBy=b.dataset.g; state.selected=null; renderAll();
@@ -151,7 +205,7 @@ function wire(){
 // ---- Dashboard charts ----
 const PAL=["#006935","#529915","#afc729","#3a7bd5","#e0962f","#2b9d6e","#7aa632","#94a3b8","#d98c2b","#1f7bb0","#b06b2a","#5a8f1f"];
 let DCHARTS={};
-function dRows(){const p=document.getElementById("d-period").value;return ORDERS.filter(o=> p==="alle"||(o.uitvoerdatum||"").startsWith(p));}
+function dRows(){return ORDERS.filter(matchPeriod);}
 function mkChart(id,cfg){if(typeof Chart==="undefined")return;if(DCHARTS[id])DCHARTS[id].destroy();const c=document.getElementById(id);if(c)DCHARTS[id]=new Chart(c,cfg);}
 const mlbl=m=>{const[y,mm]=m.split("-");return NLM[+mm-1]+" "+y;};
 function renderDashboard(){

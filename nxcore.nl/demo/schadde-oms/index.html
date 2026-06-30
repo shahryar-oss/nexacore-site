@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Teko:wght@500;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=4"/>
+<link rel="stylesheet" href="styles.css?v=6"/>
 </head>
 <body>
 <div id="gate" class="gate">
@@ -47,7 +47,10 @@
   <section id="view-dashboard">
     <div class="toolbar">
       <span><label>Periode</label></span>
-      <select id="d-period"></select>
+      <select id="d-year" class="per-ctl"></select>
+      <select id="d-part" class="per-ctl"></select>
+      <input type="date" id="d-day" class="per-ctl" title="Specifieke dag"/>
+      <button class="per-reset" id="d-reset" type="button">Alles</button>
       <div class="spacer"></div>
     </div>
     <div class="kpis" id="d-kpis"></div>
@@ -64,7 +67,10 @@
   <section id="view-rapportage" class="hidden">
     <div class="toolbar">
       <span><label>Periode</label></span>
-      <select id="f-period"></select>
+      <select id="f-year" class="per-ctl"></select>
+      <select id="f-part" class="per-ctl"></select>
+      <input type="date" id="f-day" class="per-ctl" title="Specifieke dag"/>
+      <button class="per-reset" id="f-reset" type="button">Alles</button>
       <span><label>Groepeer op</label></span>
       <div class="seg" id="groupby">
         <button data-g="productgroep" class="active">Productgroep</button>
@@ -131,6 +137,6 @@
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
