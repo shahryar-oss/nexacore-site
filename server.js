@@ -524,15 +524,19 @@ async function omsFetchPage(p, page) {
   }
   throw new Error(`${p} p${page} -> 429 (retries exhausted)`);
 }
-async function omsFetchAll(p) {
+// Fetches all pages, projecting each page to slim objects via proj() and discarding the
+// raw page immediately. This keeps peak memory low (we never hold all fat records at once).
+async function omsFetchAll(p, proj) {
+  const map = proj || ((x) => x);
   const first = await omsFetchPage(p, 1);
+  const out = first.data.map(map);
   const last = (first.meta && first.meta.last_page) || (first.data.length < OMS_PER_PAGE ? 1 : 200);
-  if (last <= 1) return first.data;
-  const out = first.data.slice();
-  const rest = await Promise.all(
-    Array.from({ length: Math.min(last, 200) - 1 }, (_, i) => omsFetchPage(p, i + 2))
-  );
-  rest.forEach((r) => out.push(...r.data));
+  if (last > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: Math.min(last, 200) - 1 }, (_, i) => omsFetchPage(p, i + 2).then((r) => r.data.map(map)))
+    );
+    for (const arr of rest) for (const x of arr) out.push(x);
+  }
   return out;
 }
 // ---- geocoding: reuse the 695 known Schadde coordinates as a seed; PDOK (free) for new ----
@@ -580,26 +584,28 @@ async function buildOmsLive() {
   omsBuilding = true;
   const t0 = Date.now();
   try {
-    const [adminOrders, naOrders, wasteNums, contactsList, contractsRaw] = await Promise.all([
-      omsFetchAll("/v1/admin/orders"), omsFetchAll("/v1/orders"), omsFetchAll("/v1/admin/waste-numbers"),
-      omsFetchAll("/v1/contacts"), omsFetchAll("/v1/contracts"),
+    // 1. Build SLIM lookup tables first (small memory). Project each record to only the
+    //    fields we need so we never retain the fat raw payloads.
+    const [naSlim, wasteNums, contactsList, contractsRaw] = await Promise.all([
+      omsFetchAll("/v1/orders", (o) => ({ uuid: o.uuid, contact_name: o.contact_name, contact_uuid: o.contact_uuid, street: o.street, houseNumber: o.houseNumber, postalCode: o.postalCode, city: o.city, date: o.date })),
+      omsFetchAll("/v1/admin/waste-numbers", (w) => ({ uuid: w.uuid, number: w.number, eural: w.euralCode && (w.euralCode.code || w.euralCode) })),
+      omsFetchAll("/v1/contacts", (c) => ({ uuid: c.uuid, cat: (c.isCompany === true || c.is_company === true) ? "Zakelijk" : ((c.isCompany === false || c.is_company === false) ? "Particulier" : "") })),
+      omsFetchAll("/v1/contracts", (c) => ({ relatie: c.contact_name, status: c.status, start: c.start, end: c.end, street: c.street, houseNumber: c.houseNumber, postcode: c.postalCode, city: c.city })),
     ]);
-    // waste-stream lookup (by uuid and by afvalstroomnummer)
     const wmap = {};
-    wasteNums.forEach((w) => { const e = { eural: w.euralCode && (w.euralCode.code || w.euralCode), number: w.number }; if (w.uuid) wmap[w.uuid] = e; if (w.number) wmap[w.number] = e; });
+    wasteNums.forEach((w) => { const e = { eural: w.eural, number: w.number }; if (w.uuid) wmap[w.uuid] = e; if (w.number) wmap[w.number] = e; });
     const resolveWaste = (wn) => {
       if (!wn) return {};
       if (typeof wn === "object") return { eural: (wn.euralCode && (wn.euralCode.code || wn.euralCode)) || (wmap[wn.uuid] && wmap[wn.uuid].eural), number: wn.number || (wmap[wn.uuid] && wmap[wn.uuid].number) };
       return wmap[wn] || {};
     };
-    // category (particulier/zakelijk) from contact
     const catMap = {};
-    contactsList.forEach((c) => { if (c.uuid) catMap[c.uuid] = (c.isCompany === true || c.is_company === true) ? "Zakelijk" : ((c.isCompany === false || c.is_company === false) ? "Particulier" : ""); });
-    // customer name + address from the non-admin order, keyed by uuid
+    contactsList.forEach((c) => { if (c.uuid) catMap[c.uuid] = c.cat; });
     const naByUuid = {};
-    naOrders.forEach((o) => { if (o.uuid) naByUuid[o.uuid] = o; });
-    // flatten admin orders (line items -> waste/tonnage/revenue) enriched with customer + address
-    const orders = adminOrders.map((O) => {
+    naSlim.forEach((o) => { if (o.uuid) naByUuid[o.uuid] = o; });
+    // 2. Stream admin orders: flatten each page to a slim order as it arrives, so we never
+    //    hold all ~24k fat order objects (with nested line items) in memory at once.
+    const orders = await omsFetchAll("/v1/admin/orders", (O) => {
       const na = naByUuid[O.uuid] || {};
       const items = O.orderItems || [];
       const wItem = items.find((it) => it.wasteNumber) || {};
@@ -612,8 +618,8 @@ async function buildOmsLive() {
         ordernr: O.orderNr || na.order_nr,
         relatie: na.contact_name || (O.location && O.location.name) || "(onbekend)",
         categorie: catMap[na.contact_uuid] || "",
-        service: (bestItem.serviceType && bestItem.serviceType.name) || (na.serviceType && na.serviceType.name) || "",
-        productgroep: (bestItem.product && bestItem.product.name) || (na.product && na.product.name) || "Onbekend",
+        service: (bestItem.serviceType && bestItem.serviceType.name) || "",
+        productgroep: (bestItem.product && bestItem.product.name) || "Onbekend",
         product: (bestItem.product && bestItem.product.name) || "",
         uitvoerdatum: String(O.executedAt || O.date || na.date || "").slice(0, 10),
         status: O.status,
