@@ -185,7 +185,7 @@ function renderDashboard(){
 
 // ---- access gate: data is only released by the server with the correct code ----
 async function unlock(code){
-  const r=await fetch("/api/oms-demo",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});
+  const r=await fetch("/api/oms-live",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(d.error||"Toegang geweigerd.");
   return d;

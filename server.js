@@ -514,116 +514,116 @@ async function omsFetchAll(p) {
     const data = Array.isArray(j) ? j : (j.data || []);
     out.push(...data);
     const last = (j.meta && j.meta.last_page) || (data.length < 200 ? page : page + 1);
-    if (data.length < 200 || page >= last || page > 60) break;
+    if (data.length < 200 || page >= last || page > 120) break;
     page++;
   }
   return out;
 }
+// ---- geocoding: reuse the 695 known Schadde coordinates as a seed; PDOK (free) for new ----
+const OMS_LOC_SEED = (() => {
+  try { const a = JSON.parse(fs.readFileSync(path.join(OMS_DATA_DIR, "locations.json"), "utf8")); const m = {}; a.forEach((l) => { if (l.adres && l.lat) m[l.adres.toLowerCase()] = { lat: l.lat, lng: l.lng }; }); return m; }
+  catch (e) { return {}; }
+})();
+let GEOCACHE = { ...OMS_GEO };
+async function pdokGeocode(q) {
+  try {
+    const r = await fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?rows=1&fl=centroide_ll&q=" + encodeURIComponent(q), { headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const d = j.response && j.response.docs && j.response.docs[0];
+    const m = d && d.centroide_ll && /POINT\(([-\d.]+) ([-\d.]+)\)/.exec(d.centroide_ll);
+    return m ? { lat: +m[2], lng: +m[1] } : null;
+  } catch (e) { return null; }
+}
+async function geocodeAll(addrs) {
+  const out = {}; let budget = 250;
+  for (const a of addrs) {
+    const k = a.toLowerCase();
+    if (OMS_LOC_SEED[k]) { out[a] = OMS_LOC_SEED[k]; continue; }
+    if (GEOCACHE[k]) { out[a] = GEOCACHE[k]; continue; }
+    if (budget-- <= 0) continue;
+    const g = await pdokGeocode(a);
+    if (g) { GEOCACHE[k] = g; out[a] = g; }
+  }
+  try { fs.writeFileSync(path.join(OMS_DATA_DIR, "geocode-cache.json"), JSON.stringify(GEOCACHE)); } catch (e) {}
+  return out;
+}
+const unitIsTon = (u) => /ton/i.test(typeof u === "string" ? u : (u && (u.name || u.code)) || "");
+
 app.post("/api/oms-live", async (req, res) => {
   if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
   if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
   if (!OMS_API_KEY) return res.status(503).json({ error: "Live koppeling is nog niet geconfigureerd." });
   try {
     if (omsLiveCache.data && Date.now() - omsLiveCache.at < 300000) return res.json({ cached: true, ...omsLiveCache.data });
-    const [orders, packagings, contracts] = await Promise.all([
-      omsFetchAll("/v1/orders"), omsFetchAll("/v1/packagings"), omsFetchAll("/v1/contracts"),
+    const [adminOrders, naOrders, wasteNums, contactsList, contractsRaw] = await Promise.all([
+      omsFetchAll("/v1/admin/orders"), omsFetchAll("/v1/orders"), omsFetchAll("/v1/admin/waste-numbers"),
+      omsFetchAll("/v1/contacts"), omsFetchAll("/v1/contracts"),
     ]);
-    const data = {
-      orders: orders.map((o) => ({
-        order_nr: o.order_nr, relatie: o.contact_name, service: o.serviceType && o.serviceType.name,
-        product: o.product && o.product.name, status: o.status, date: o.date, totalExcl: o.totalExcl,
-        street: o.street, huisnr: o.houseNumber, postcode: o.postalCode, city: o.city,
-      })),
-      packagings: packagings.map((p) => ({
-        number: p.number, type: p.packaging_type_title, rfid: p.rfid_tag, active: p.active,
-        address: p.current_address || p.address,
-      })),
-      contracts: contracts.map((c) => ({
-        relatie: c.contact_name, status: c.status, start: c.start, end: c.end,
-        street: c.street, postcode: c.postalCode, city: c.city,
-      })),
-      counts: { orders: orders.length, packagings: packagings.length, contracts: contracts.length },
+    // waste-stream lookup (by uuid and by afvalstroomnummer)
+    const wmap = {};
+    wasteNums.forEach((w) => { const e = { eural: w.euralCode && (w.euralCode.code || w.euralCode), number: w.number }; if (w.uuid) wmap[w.uuid] = e; if (w.number) wmap[w.number] = e; });
+    const resolveWaste = (wn) => {
+      if (!wn) return {};
+      if (typeof wn === "object") return { eural: (wn.euralCode && (wn.euralCode.code || wn.euralCode)) || (wmap[wn.uuid] && wmap[wn.uuid].eural), number: wn.number || (wmap[wn.uuid] && wmap[wn.uuid].number) };
+      return wmap[wn] || {};
     };
+    // category (particulier/zakelijk) from contact
+    const catMap = {};
+    contactsList.forEach((c) => { if (c.uuid) catMap[c.uuid] = (c.isCompany === true || c.is_company === true) ? "Zakelijk" : ((c.isCompany === false || c.is_company === false) ? "Particulier" : ""); });
+    // customer name + address from the non-admin order, keyed by uuid
+    const naByUuid = {};
+    naOrders.forEach((o) => { if (o.uuid) naByUuid[o.uuid] = o; });
+    // flatten admin orders (line items -> waste/tonnage/revenue) enriched with customer + address
+    const orders = adminOrders.map((O) => {
+      const na = naByUuid[O.uuid] || {};
+      const items = O.orderItems || [];
+      const wItem = items.find((it) => it.wasteNumber) || {};
+      const w = resolveWaste(wItem.wasteNumber);
+      const tonKg = Math.round(items.filter((it) => unitIsTon(it.unit)).reduce((s, it) => s + (+it.quantity || 0), 0) * 1000);
+      const bestItem = items.slice().sort((a, b) => (+b.total_excl || 0) - (+a.total_excl || 0))[0] || {};
+      const st = na.street, hn = na.houseNumber, pc = na.postalCode, city = na.city;
+      const adres = st ? (`${st} ${hn || ""}`.trim() + ((pc || city) ? `, ${pc || ""}${pc && city ? ", " : ""}${city || ""}` : "")) : "";
+      return {
+        ordernr: O.orderNr || na.order_nr,
+        relatie: na.contact_name || (O.location && O.location.name) || "(onbekend)",
+        categorie: catMap[na.contact_uuid] || "",
+        service: (bestItem.serviceType && bestItem.serviceType.name) || (na.serviceType && na.serviceType.name) || "",
+        productgroep: (bestItem.product && bestItem.product.name) || (na.product && na.product.name) || "Onbekend",
+        product: (bestItem.product && bestItem.product.name) || "",
+        uitvoerdatum: String(O.executedAt || O.date || na.date || "").slice(0, 10),
+        status: O.status,
+        netto_gewicht: tonKg,
+        afvalstroom: w.number || "",
+        eural: w.eural || "",
+        regeltotaal: +O.totalExcl || items.reduce((s, it) => s + (+it.total_excl || 0), 0),
+        adres,
+      };
+    });
+    // aggregate locations by address (orders) + contracts as fixed installations
+    const locAgg = {};
+    orders.forEach((o) => {
+      if (!o.adres) return;
+      const a = (locAgg[o.adres] = locAgg[o.adres] || { adres: o.adres, klant: o.relatie, count: 0, types: new Set(), laatste: "" });
+      a.count++; if (o.product) a.types.add(o.product); if (o.uitvoerdatum > a.laatste) a.laatste = o.uitvoerdatum;
+    });
+    const contracts = contractsRaw.map((c) => ({ relatie: c.contact_name, status: c.status, start: c.start, end: c.end, street: c.street, postcode: c.postalCode, city: c.city }));
+    contractsRaw.forEach((c) => {
+      if (!c.street) return;
+      const adres = `${c.street} ${c.houseNumber || ""}`.trim() + `, ${c.postalCode || ""}, ${c.city || ""}`;
+      const a = (locAgg["INST::" + adres] = locAgg["INST::" + adres] || { adres, klant: c.contact_name, count: 0, types: new Set(), laatste: "", inst: true });
+      a.count++;
+    });
+    const uniqAddrs = [...new Set(Object.values(locAgg).map((a) => a.adres))];
+    const geo = await geocodeAll(uniqAddrs);
+    const locations = Object.values(locAgg).map((a) => {
+      const g = geo[a.adres]; if (!g) return null;
+      return { type: a.inst ? "installatie" : "order", adres: a.adres, klant: a.klant, lat: g.lat, lng: g.lng, count: a.count, types: [...a.types].slice(0, 3).join(", "), laatste: a.laatste };
+    }).filter(Boolean);
+    const data = { orders, contracts, locations, counts: { orders: orders.length, locations: locations.length, contracts: contracts.length } };
     omsLiveCache = { at: Date.now(), data };
     res.json({ cached: false, ...data });
   } catch (e) { console.error("[oms-live]", e.message); return res.status(502).json({ error: "Live data niet beschikbaar: " + e.message }); }
-});
-
-/* ----------------------------------- /api/oms-probe (TEMPORARY diagnostic, read-only)
-   Confirms which rich fields the admin orders endpoint inlines (weight/eural/afvalstroom)
-   so the live demo can map them. Masks PII — returns key names + populated/empty only. */
-function omsAuthGet2(p) {
-  return fetch(`${OMS_API_BASE}${p}`, { headers: { Authorization: `Bearer ${OMS_API_KEY}`, Accept: "application/json" } })
-    .then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }));
-}
-const filled2 = (v) => v !== null && v !== undefined && !(typeof v === "string" && v.trim() === "") && !(Array.isArray(v) && v.length === 0);
-app.post("/api/oms-probe", async (req, res) => {
-  if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
-  if (!OMS_API_KEY) return res.status(503).json({ error: "Geen API-sleutel." });
-  const out = {};
-  const arr = (b) => Array.isArray(b) ? b : (b && b.data) || [];
-  // addr presence only — never values. records lat/lng per address-schema type.
-  const addrPresence = (a) => !a || typeof a !== "object" ? String(a) : { keys: Object.keys(a), street: filled2(a.street), city: filled2(a.city), postal: filled2(a.postalCode || a.postal_code), lat: filled2(a.lat || a.latitude), lng: filled2(a.lng || a.longitude), formatted: filled2(a.formatted) };
-  try {
-    // ---- baseline: admin orders, no parameter ----
-    const base = await omsAuthGet2("/v1/admin/orders?per_page=40&page=1");
-    const list = arr(base.body); const o0 = list[0] || {};
-    const it0 = (o0.orderItems || [])[0] || {};
-    const wnSample = (() => { for (const o of list) for (const it of (o.orderItems || [])) if (filled2(it.wasteNumber)) return it.wasteNumber; return null; })();
-    out.baseline = {
-      status: base.status, n: list.length,
-      order_keys: Object.keys(o0),
-      location_keys: o0.location ? Object.keys(o0.location) : null,
-      location_address: addrPresence(o0.location && o0.location.address),
-      contact_present: filled2(o0.contact), contact_keys: o0.contact ? Object.keys(o0.contact) : null,
-      contact_addresses_present: filled2(o0.contact && o0.contact.addresses),
-      deliveryAddress: addrPresence(o0.deliveryAddress), destinationAddress: addrPresence(o0.destinationAddress),
-      item_keys: Object.keys(it0),
-      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => typeof it.unit === "string" ? it.unit : (it.unit && (it.unit.name || it.unit.code)) || JSON.stringify(it.unit))))].slice(0, 20),
-      item_wasteNumber: typeof wnSample === "object" && wnSample ? { keys: Object.keys(wnSample), eural_obj: wnSample.euralCode, number: wnSample.number } : "ref:" + JSON.stringify(wnSample),
-      item_weightMeasurements_present: filled2(it0.weightMeasurements),
-    };
-    // ---- include/with syntax variants vs baseline; capture ignored-param signals ----
-    out.include_variants = [];
-    const variants = [
-      "?per_page=3&with=contact.addresses,orderItems.weightMeasurements,orderItems.wasteNumber",
-      "?per_page=3&include=contact.addresses,orderItems.weightMeasurements,orderItems.wasteNumber",
-      "?per_page=3&with=deliveryAddress,destinationAddress",
-      "?per_page=3&with[]=contact.addresses&with[]=orderItems.weightMeasurements",
-    ];
-    for (const q of variants) {
-      const r = await omsAuthGet2("/v1/admin/orders" + q);
-      const a = arr(r.body)[0] || {}; const it = (a.orderItems || [])[0] || {};
-      out.include_variants.push({
-        q, status: r.status,
-        signal: r.body && typeof r.body === "object" && !Array.isArray(r.body) ? { has_errors: !!r.body.errors, has_message: !!r.body.message, meta_keys: r.body.meta ? Object.keys(r.body.meta) : null } : null,
-        contact_addresses: filled2(a.contact && a.contact.addresses) ? "FILLED" : "empty",
-        item_weightMeasurements: filled2(it.weightMeasurements) ? "FILLED" : "empty",
-        deliveryAddress: filled2(a.deliveryAddress) ? "FILLED" : "empty",
-      });
-    }
-    // ---- contact path (priority map source): /v1/contacts/{uuid}.addresses[] lat/lng ----
-    const nao = await omsAuthGet2("/v1/orders?per_page=10"); // non-admin order carries contact_uuid
-    const cu = arr(nao.body).find((o) => o.contact_uuid)?.contact_uuid;
-    if (cu) {
-      const c = await omsAuthGet2("/v1/contacts/" + cu);
-      const co = (c.body && (c.body.data || c.body)) || {}; const ca = (co.addresses || [])[0];
-      out.contact_path = { status: c.status, n_addresses: Array.isArray(co.addresses) ? co.addresses.length : "none", first_address: addrPresence(ca), flags: ca ? { is_work: ca.is_work, is_depot: ca.is_depot, is_general: ca.is_general, is_invoice: ca.is_invoice } : null };
-    } else out.contact_path = { skipped: "no contact_uuid" };
-    // ---- waste-numbers reference ----
-    const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
-    const wl = arr(wn.body);
-    out.waste_numbers = { status: wn.status, n: wl.length, sample: wl[0] ? { euralCode: wl[0].euralCode, number: wl[0].number, processingMethod: wl[0].processingMethod } : null };
-    // ---- weight-measurements shape (one order that has weighings) ----
-    out.weight_measurements = { searched: 0, found: null };
-    for (const o of list.slice(0, 25)) {
-      if (!o.uuid) continue; out.weight_measurements.searched++;
-      const wm = await omsAuthGet2("/v1/weight-measurements/" + o.uuid);
-      const wmd = arr(wm.body);
-      if (wmd.length) { out.weight_measurements.found = { keys: Object.keys(wmd[0]), has_netto: filled2(wmd[0].weight_netto), has_unit: filled2(wmd[0].unit) }; break; }
-    }
-    res.json(out);
-  } catch (e) { console.error("[oms-probe]", e.message); return res.status(502).json({ error: e.message, partial: out }); }
 });
 
 /* ------------------------------------------------------------------ static */
