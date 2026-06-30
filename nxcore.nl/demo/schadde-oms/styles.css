@@ -82,3 +82,11 @@ footer.foot b{color:var(--navy-2)}
 .btn-go:hover{background:var(--accent-dark)} .btn-go:disabled{opacity:.6;cursor:default}
 .gate-err{color:#e4572e;font-size:13px;font-weight:600;min-height:16px}
 .gate-foot{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* dashboard charts */
+.chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.chart-card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px}
+.chart-card h3{font-family:var(--head-font);font-size:19px;font-weight:600;letter-spacing:.3px;color:var(--navy);margin:0 0 8px}
+.chart-card.wide{grid-column:1 / -1}
+.chart-card .cw{position:relative;height:260px}
+@media(max-width:980px){.chart-grid{grid-template-columns:1fr}}

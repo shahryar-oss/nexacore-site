@@ -124,6 +124,8 @@ function wire(){
   ps.innerHTML=`<option value="alle">Alle (${months[0]||""} t/m ${months.at(-1)||""})</option>`+
     months.map(m=>{const[y,mm]=m.split("-");return `<option value="${m}">${NLM[+mm-1]} ${y}</option>`;}).join("");
   ps.onchange=e=>{state.period=e.target.value;renderAll();};
+  const dp=document.getElementById("d-period");
+  if(dp){ dp.innerHTML=ps.innerHTML; dp.onchange=()=>renderDashboard(); }
   document.querySelectorAll("#groupby button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#groupby button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); state.groupBy=b.dataset.g; state.selected=null; renderAll();
@@ -134,14 +136,51 @@ function wire(){
   document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
     const v=t.dataset.tab;
+    document.getElementById("view-dashboard").classList.toggle("hidden",v!=="dashboard");
     document.getElementById("view-rapportage").classList.toggle("hidden",v!=="rapportage");
     document.getElementById("view-locatie").classList.toggle("hidden",v!=="locatie");
     if(v==="locatie") renderMap();
+    if(v==="dashboard") renderDashboard();
   });
   document.querySelectorAll("#loc-filter button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#loc-filter button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); state.locFilter=b.dataset.l; renderMap();
   });
+}
+
+// ---- Dashboard charts ----
+const PAL=["#006935","#529915","#afc729","#3a7bd5","#e0962f","#2b9d6e","#7aa632","#94a3b8","#d98c2b","#1f7bb0","#b06b2a","#5a8f1f"];
+let DCHARTS={};
+function dRows(){const p=document.getElementById("d-period").value;return ORDERS.filter(o=> p==="alle"||(o.uitvoerdatum||"").startsWith(p));}
+function mkChart(id,cfg){if(typeof Chart==="undefined")return;if(DCHARTS[id])DCHARTS[id].destroy();const c=document.getElementById(id);if(c)DCHARTS[id]=new Chart(c,cfg);}
+const mlbl=m=>{const[y,mm]=m.split("-");return NLM[+mm-1]+" "+y;};
+function renderDashboard(){
+  const rows=dRows();
+  const orders=new Set(rows.map(o=>o.ordernr)).size;
+  const kg=rows.reduce((s,o)=>s+(o.netto_gewicht||0),0);
+  const omzet=rows.reduce((s,o)=>s+(o.regeltotaal||0),0);
+  const klanten=new Set(rows.map(o=>o.relatie)).size;
+  document.getElementById("d-kpis").innerHTML=[
+    ["Orders",num(orders),"in periode"],
+    ["Verwerkt gewicht",ton(kg)+'<span class="unit">ton</span>',"netto gewogen"],
+    ["Omzet (excl)",eur(omzet),"regeltotaal"],
+    ["Klanten",num(klanten),"actief in periode"],
+  ].map(([l,v,s])=>`<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+  const baseOpts={maintainAspectRatio:false,plugins:{legend:{display:false}}};
+  const pgm={};rows.forEach(o=>{const k=o.productgroep||"Onbekend";pgm[k]=(pgm[k]||0)+(o.regeltotaal||0);});
+  const pg=Object.entries(pgm).sort((a,b)=>b[1]-a[1]);
+  mkChart("ch-omzet",{type:"bar",data:{labels:pg.map(x=>x[0]),datasets:[{data:pg.map(x=>Math.round(x[1])),backgroundColor:"#006935",borderRadius:4}]},options:{...baseOpts,scales:{y:{ticks:{callback:v=>"€ "+v.toLocaleString("nl-NL")}},x:{ticks:{font:{size:10}}}}}});
+  const mm={};rows.forEach(o=>{const m=(o.uitvoerdatum||"").slice(0,7);if(!m)return;mm[m]=(mm[m]||0)+(o.netto_gewicht||0)/1000;});
+  const ms=Object.keys(mm).sort();
+  mkChart("ch-month",{type:"line",data:{labels:ms.map(mlbl),datasets:[{data:ms.map(m=>Math.round(mm[m])),borderColor:"#006935",backgroundColor:"rgba(0,105,53,.12)",fill:true,tension:.3,pointRadius:3}]},options:{...baseOpts,scales:{y:{ticks:{callback:v=>v+" t"}}}}});
+  let par=0,zak=0;rows.forEach(o=>{const k=(o.categorie||"").toLowerCase();if(k.includes("particulier"))par++;else if(k.includes("zakelijk")||k.includes("bedrijf"))zak++;});
+  mkChart("ch-seg",{type:"doughnut",data:{labels:["Particulier","Zakelijk"],datasets:[{data:[par,zak],backgroundColor:["#3a7bd5","#006935"]}]},options:{...baseOpts,plugins:{legend:{position:"bottom"}},cutout:"58%"}});
+  const sv={};rows.forEach(o=>{const k=o.service||"?";sv[k]=(sv[k]||0)+1;});
+  const sve=Object.entries(sv).sort((a,b)=>b[1]-a[1]);
+  mkChart("ch-service",{type:"doughnut",data:{labels:sve.map(x=>x[0]),datasets:[{data:sve.map(x=>x[1]),backgroundColor:PAL}]},options:{...baseOpts,plugins:{legend:{position:"bottom",labels:{font:{size:10},boxWidth:12}}},cutout:"55%"}});
+  const cm={};rows.forEach(o=>{const k=o.relatie||"?";cm[k]=(cm[k]||0)+(o.regeltotaal||0);});
+  const top=Object.entries(cm).sort((a,b)=>b[1]-a[1]).slice(0,10).reverse();
+  mkChart("ch-top",{type:"bar",data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>Math.round(x[1])),backgroundColor:"#529915",borderRadius:4}]},options:{...baseOpts,indexAxis:"y",scales:{x:{ticks:{callback:v=>"€ "+v.toLocaleString("nl-NL")}}}}});
 }
 
 // ---- access gate: data is only released by the server with the correct code ----
@@ -166,7 +205,7 @@ function boot(){
     try{
       const d=await unlock(code);
       ORDERS=d.orders||[]; CONTRACTS=d.contracts||[]; LOCS=d.locations||null;
-      showApp(); wire(); renderAll();
+      showApp(); wire(); renderAll(); renderDashboard();
     }catch(ex){ err.textContent=ex.message; btn.disabled=false; btn.textContent=lbl; }
   });
   document.getElementById("gate-code").focus();
