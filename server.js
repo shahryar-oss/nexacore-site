@@ -496,6 +496,58 @@ app.post("/api/oms-demo", (req, res) => {
   } catch (e) { console.error("[oms-demo]", e.message); return res.status(500).json({ error: "Gegevens niet beschikbaar." }); }
 });
 
+/* ----------------------------------------------- /api/oms-live (live OMS data)
+   Pulls live data from OMS4Business using the server-side API key (Bearer), gated by
+   the same access code. Cached briefly to limit API calls. Key never leaves the server. */
+const OMS_API_KEY = process.env.OMS_API_KEY || "";
+const OMS_API_BASE = "https://login.oms4business.com/api";
+let omsLiveCache = { at: 0, data: null };
+async function omsFetchAll(p) {
+  const out = []; let page = 1;
+  for (;;) {
+    const url = `${OMS_API_BASE}${p}${p.includes("?") ? "&" : "?"}per_page=200&page=${page}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${OMS_API_KEY}`, Accept: "application/json" } });
+    if (r.status === 429) { await new Promise((s) => setTimeout(s, 1500)); continue; }
+    if (!r.ok) throw new Error(`${p} -> ${r.status}`);
+    const j = await r.json();
+    const data = Array.isArray(j) ? j : (j.data || []);
+    out.push(...data);
+    const last = (j.meta && j.meta.last_page) || (data.length < 200 ? page : page + 1);
+    if (data.length < 200 || page >= last || page > 60) break;
+    page++;
+  }
+  return out;
+}
+app.post("/api/oms-live", async (req, res) => {
+  if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
+  if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  if (!OMS_API_KEY) return res.status(503).json({ error: "Live koppeling is nog niet geconfigureerd." });
+  try {
+    if (omsLiveCache.data && Date.now() - omsLiveCache.at < 300000) return res.json({ cached: true, ...omsLiveCache.data });
+    const [orders, packagings, contracts] = await Promise.all([
+      omsFetchAll("/v1/orders"), omsFetchAll("/v1/packagings"), omsFetchAll("/v1/contracts"),
+    ]);
+    const data = {
+      orders: orders.map((o) => ({
+        order_nr: o.order_nr, relatie: o.contact_name, service: o.serviceType && o.serviceType.name,
+        product: o.product && o.product.name, status: o.status, date: o.date, totalExcl: o.totalExcl,
+        street: o.street, huisnr: o.houseNumber, postcode: o.postalCode, city: o.city,
+      })),
+      packagings: packagings.map((p) => ({
+        number: p.number, type: p.packaging_type_title, rfid: p.rfid_tag, active: p.active,
+        address: p.current_address || p.address,
+      })),
+      contracts: contracts.map((c) => ({
+        relatie: c.contact_name, status: c.status, start: c.start, end: c.end,
+        street: c.street, postcode: c.postalCode, city: c.city,
+      })),
+      counts: { orders: orders.length, packagings: packagings.length, contracts: contracts.length },
+    };
+    omsLiveCache = { at: Date.now(), data };
+    res.json({ cached: false, ...data });
+  } catch (e) { console.error("[oms-live]", e.message); return res.status(502).json({ error: "Live data niet beschikbaar: " + e.message }); }
+});
+
 /* ------------------------------------------------------------------ static */
 const FRESH = new Set(["nxc-i18n.js", "nxc-app.js", "nexaMails.png"]); // files I edit often
 app.use(express.static(SITE_DIR, {
