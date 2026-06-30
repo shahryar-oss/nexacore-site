@@ -562,33 +562,27 @@ app.post("/api/oms-probe", async (req, res) => {
   if (!OMS_API_KEY) return res.status(503).json({ error: "Geen API-sleutel." });
   const out = {};
   try {
-    const ao = await omsAuthGet2("/v1/admin/orders?per_page=10&page=1");
+    const ao = await omsAuthGet2("/v1/admin/orders?per_page=40&page=1");
     const list = Array.isArray(ao.body) ? ao.body : (ao.body && ao.body.data) || [];
     const o0 = list[0] || {};
+    const shape = (v) => v == null ? String(v) : (typeof v === "object" ? (Array.isArray(v) ? "[" + (v[0] ? Object.keys(v[0]).join(",") : "") + "]" : Object.keys(v).join(",")) : typeof v + ":" + String(v).slice(0, 40));
     out.admin_orders = {
-      status: ao.status, n: list.length, keys: Object.keys(o0),
-      first_item_keys: Array.isArray(o0.orderItems) && o0.orderItems[0] ? Object.keys(o0.orderItems[0]) : (Array.isArray(o0.order_items) && o0.order_items[0] ? Object.keys(o0.order_items[0]) : "no orderItems"),
-      rich: list.slice(0, 6).map((o) => {
-        const it = (o.orderItems || o.order_items || [])[0] || {};
-        const probe = (obj, names) => { for (const n of names) if (filled2(obj[n])) return n + "=FILLED"; return "empty"; };
-        return {
-          nr: o.order_nr,
-          weight: probe(o, ["netto_weight", "nettoWeight", "weight", "net_weight"]) + " / item:" + probe(it, ["netto_weight", "nettoWeight", "weight", "quantity"]),
-          eural: probe(o, ["eural", "euralCode", "eural_code"]) + " / item:" + probe(it, ["eural", "euralCode", "wasteNumber", "waste_number"]),
-          afvalstroom: probe(o, ["wasteNumber", "waste_number", "afvalstroomnummer"]) + " / item:" + probe(it, ["wasteNumber", "waste_number", "afvalstroomnummer"]),
-          categorie: probe(o, ["category", "categorie", "isCompany", "is_company"]),
-          productgroep: probe(o, ["productGroup", "product_group", "productgroep"]) + " prod:" + (o.product && o.product.name ? "FILLED" : "empty"),
-        };
-      }),
+      status: ao.status, n: list.length,
+      location_shape: shape(o0.location),
+      item_units: [...new Set(list.flatMap((o) => (o.orderItems || []).map((it) => (it.unit && (it.unit.name || it.unit.code)) || JSON.stringify(it.unit))))].slice(0, 20),
+      item_sample: (() => { const it = (o0.orderItems || [])[0] || {}; return { unit: it.unit, quantity: it.quantity, product: it.product && it.product.name, service: it.serviceType && it.serviceType.name, wasteNumber: it.wasteNumber }; })(),
     };
     const wn = await omsAuthGet2("/v1/admin/waste-numbers?per_page=5");
     const wl = Array.isArray(wn.body) ? wn.body : (wn.body && wn.body.data) || [];
-    out.waste_numbers = { status: wn.status, n: wl.length, keys: wl[0] ? Object.keys(wl[0]) : [] };
-    const uuid = list.find((o) => o.uuid)?.uuid;
-    if (uuid) {
-      const wm = await omsAuthGet2("/v1/weight-measurements/" + uuid);
-      const wmd = Array.isArray(wm.body) ? wm.body : (wm.body && wm.body.data) || wm.body;
-      out.weight_measurements = { status: wm.status, sample_keys: Array.isArray(wmd) ? (wmd[0] ? Object.keys(wmd[0]) : "empty array") : (wmd ? Object.keys(wmd) : "null") };
+    out.waste_numbers = { status: wn.status, n: wl.length, sample: wl[0] ? { euralCode: wl[0].euralCode, number: wl[0].number, processingMethod: wl[0].processingMethod, product: wl[0].product && (wl[0].product.name || wl[0].product) } : null };
+    // find an order that actually has weighings
+    out.weight_measurements = { searched: 0, found: null };
+    for (const o of list.slice(0, 25)) {
+      if (!o.uuid) continue;
+      out.weight_measurements.searched++;
+      const wm = await omsAuthGet2("/v1/weight-measurements/" + o.uuid);
+      const wmd = Array.isArray(wm.body) ? wm.body : (wm.body && wm.body.data) || [];
+      if (Array.isArray(wmd) && wmd.length) { out.weight_measurements.found = { status: wm.status, n: wmd.length, keys: Object.keys(wmd[0]), sample: { net: wmd[0].net || wmd[0].netto || wmd[0].netWeight, unit: wmd[0].unit, gross: wmd[0].gross } }; break; }
     }
     res.json(out);
   } catch (e) { console.error("[oms-probe]", e.message); return res.status(502).json({ error: e.message, partial: out }); }
