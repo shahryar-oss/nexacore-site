@@ -506,20 +506,33 @@ const OMS_GEO_FILE = path.join(os.tmpdir(), "oms-geocode-cache.json"); // off-re
 const OMS_GEO = (() => { try { return JSON.parse(fs.readFileSync(OMS_GEO_FILE, "utf8")); } catch (e) { return {}; } })();
 let omsLiveCache = { at: 0, data: null };
 let omsBuilding = false;
-async function omsFetchAll(p) {
-  const out = []; let page = 1;
-  for (;;) {
-    const url = `${OMS_API_BASE}${p}${p.includes("?") ? "&" : "?"}per_page=200&page=${page}`;
+const OMS_PER_PAGE = 500;
+// Global rate gate: spaces OMS request starts ~550ms apart (~110/min, under the 120/min cap)
+// so we can fire pages in parallel without 429 storms. This is the key speedup.
+const sleepMs = (ms) => new Promise((s) => setTimeout(s, ms));
+let _omsGate = Promise.resolve();
+function omsGate() { const p = _omsGate.then(() => sleepMs(550)); _omsGate = p; return p; }
+async function omsFetchPage(p, page) {
+  for (let t = 0; t < 6; t++) {
+    await omsGate();
+    const url = `${OMS_API_BASE}${p}${p.includes("?") ? "&" : "?"}per_page=${OMS_PER_PAGE}&page=${page}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${OMS_API_KEY}`, Accept: "application/json" } });
-    if (r.status === 429) { await new Promise((s) => setTimeout(s, 1500)); continue; }
-    if (!r.ok) throw new Error(`${p} -> ${r.status}`);
+    if (r.status === 429) { await sleepMs(3000); continue; }
+    if (!r.ok) throw new Error(`${p} p${page} -> ${r.status}`);
     const j = await r.json();
-    const data = Array.isArray(j) ? j : (j.data || []);
-    out.push(...data);
-    const last = (j.meta && j.meta.last_page) || (data.length < 200 ? page : page + 1);
-    if (data.length < 200 || page >= last || page > 120) break;
-    page++;
+    return { data: Array.isArray(j) ? j : (j.data || []), meta: j.meta };
   }
+  throw new Error(`${p} p${page} -> 429 (retries exhausted)`);
+}
+async function omsFetchAll(p) {
+  const first = await omsFetchPage(p, 1);
+  const last = (first.meta && first.meta.last_page) || (first.data.length < OMS_PER_PAGE ? 1 : 200);
+  if (last <= 1) return first.data;
+  const out = first.data.slice();
+  const rest = await Promise.all(
+    Array.from({ length: Math.min(last, 200) - 1 }, (_, i) => omsFetchPage(p, i + 2))
+  );
+  rest.forEach((r) => out.push(...r.data));
   return out;
 }
 // ---- geocoding: reuse the 695 known Schadde coordinates as a seed; PDOK (free) for new ----
@@ -539,14 +552,21 @@ async function pdokGeocode(q) {
   } catch (e) { return null; }
 }
 async function geocodeAll(addrs) {
-  const out = {}; let budget = 250;
+  const out = {};
+  const todo = [];
   for (const a of addrs) {
     const k = a.toLowerCase();
     if (OMS_LOC_SEED[k]) { out[a] = OMS_LOC_SEED[k]; continue; }
     if (GEOCACHE[k]) { out[a] = GEOCACHE[k]; continue; }
-    if (budget-- <= 0) continue;
-    const g = await pdokGeocode(a);
-    if (g) { GEOCACHE[k] = g; out[a] = g; }
+    todo.push(a);
+  }
+  // PDOK is a separate host (no OMS rate limit) — geocode new addresses in parallel batches
+  const batch = todo.slice(0, 400), CONC = 10;
+  for (let i = 0; i < batch.length; i += CONC) {
+    await Promise.all(batch.slice(i, i + CONC).map(async (a) => {
+      const g = await pdokGeocode(a);
+      if (g) { GEOCACHE[a.toLowerCase()] = g; out[a] = g; }
+    }));
   }
   try { fs.writeFileSync(OMS_GEO_FILE, JSON.stringify(GEOCACHE)); } catch (e) {}
   return out;
