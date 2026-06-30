@@ -201,7 +201,7 @@ function boot(){
     e.preventDefault();
     const code=document.getElementById("gate-code").value.trim();
     const err=document.getElementById("gate-err"); err.textContent="";
-    const btn=f.querySelector("button"); btn.disabled=true; const lbl=btn.textContent; btn.textContent="Bezig...";
+    const btn=f.querySelector("button"); btn.disabled=true; const lbl=btn.textContent; btn.textContent="Live gegevens laden...";
     try{
       const d=await unlock(code);
       ORDERS=d.orders||[]; CONTRACTS=d.contracts||[]; LOCS=d.locations||null;

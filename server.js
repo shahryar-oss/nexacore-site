@@ -555,7 +555,7 @@ app.post("/api/oms-live", async (req, res) => {
   if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
   if (!OMS_API_KEY) return res.status(503).json({ error: "Live koppeling is nog niet geconfigureerd." });
   try {
-    if (omsLiveCache.data && Date.now() - omsLiveCache.at < 300000) return res.json({ cached: true, ...omsLiveCache.data });
+    if (omsLiveCache.data && Date.now() - omsLiveCache.at < 21600000) return res.json({ cached: true, ...omsLiveCache.data }); // 6h cache (full build is heavy)
     const [adminOrders, naOrders, wasteNums, contactsList, contractsRaw] = await Promise.all([
       omsFetchAll("/v1/admin/orders"), omsFetchAll("/v1/orders"), omsFetchAll("/v1/admin/waste-numbers"),
       omsFetchAll("/v1/contacts"), omsFetchAll("/v1/contracts"),
