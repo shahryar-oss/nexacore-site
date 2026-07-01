@@ -1,6 +1,6 @@
 // OMS-aanvulling demo - runs on real OMS4Business exports (local only).
 let ORDERS=[], CONTRACTS=[], LOCS=null;
-const state={fYear:"alle", fPart:"all", fDay:"", groupBy:"productgroep", selected:null, sortKey:"omzet", sortDir:-1, locFilter:"alle"};
+const state={fYear:"alle", fPart:"all", fDay:"", statuses:new Set(["Factuur gemaakt"]), groupBy:"productgroep", selected:null, sortKey:"omzet", sortDir:-1, locFilter:"alle"};
 const NLM=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const eur=n=>"€ "+Math.round(n||0).toLocaleString("nl-NL");
 const ton=n=>(n/1000).toLocaleString("nl-NL",{maximumFractionDigits:1});
@@ -29,9 +29,10 @@ function matchPeriod(o){
   return true;
 }
 function inPeriod(o){ return matchPeriod(o); }
+function matchStatus(o){ return !state.statuses.size || state.statuses.has(o.status); }
 function monthKey(o){ return (o.uitvoerdatum||"").slice(0,7); }
 
-function periodOrders(){ return ORDERS.filter(inPeriod); }
+function periodOrders(){ return ORDERS.filter((o)=>inPeriod(o)&&matchStatus(o)); }
 function selOrders(){ return periodOrders().filter(o=>!state.selected || groupVal(o)===state.selected); }
 
 function renderKpis(){
@@ -177,9 +178,29 @@ function wirePeriod(){
   });
 }
 
+// ---- status filter (multi-select; default: invoiced only) ----
+const STATUS_ORDER=["Factuur gemaakt","Gereed voor facturatie","Afgerond","Uitgevoerd","Ingepland","Aangemaakt","Geparkeerd"];
+function fillStatusControls(){
+  const present=[...new Set(ORDERS.map(o=>o.status).filter(Boolean))];
+  const ordered=STATUS_ORDER.filter(s=>present.includes(s)).concat(present.filter(s=>!STATUS_ORDER.includes(s)));
+  const html=ordered.map(s=>`<button class="chip-toggle" data-st="${s.replace(/"/g,'&quot;')}">${s}</button>`).join("");
+  ["d","f"].forEach(p=>{const el=document.getElementById(p+"-status"); if(el) el.innerHTML=html;});
+  syncStatusControls(); wireStatusControls();
+}
+function syncStatusControls(){
+  ["d","f"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.classList.toggle("active",state.statuses.has(b.dataset.st))));
+}
+function wireStatusControls(){
+  ["d","f"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.onclick=()=>{
+    const s=b.dataset.st; if(state.statuses.has(s)) state.statuses.delete(s); else state.statuses.add(s);
+    syncStatusControls(); renderAll(); renderDashboard();
+  }));
+}
+
 function wire(){
   fillPeriodControls();
   wirePeriod();
+  fillStatusControls();
   document.querySelectorAll("#groupby button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#groupby button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); state.groupBy=b.dataset.g; state.selected=null; renderAll();
@@ -205,7 +226,7 @@ function wire(){
 // ---- Dashboard charts ----
 const PAL=["#006935","#529915","#afc729","#3a7bd5","#e0962f","#2b9d6e","#7aa632","#94a3b8","#d98c2b","#1f7bb0","#b06b2a","#5a8f1f"];
 let DCHARTS={};
-function dRows(){return ORDERS.filter(matchPeriod);}
+function dRows(){return ORDERS.filter((o)=>matchPeriod(o)&&matchStatus(o));}
 function mkChart(id,cfg){if(typeof Chart==="undefined")return;if(DCHARTS[id])DCHARTS[id].destroy();const c=document.getElementById(id);if(c)DCHARTS[id]=new Chart(c,cfg);}
 const mlbl=m=>{const[y,mm]=m.split("-");return NLM[+mm-1]+" "+y;};
 function renderDashboard(){

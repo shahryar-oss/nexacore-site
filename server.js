@@ -17,6 +17,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const zlib = require("zlib");
 const dns = require("dns").promises;
 const net = require("net");
 const { emailHTML, buildPDF } = require("./lib/notify");
@@ -650,36 +651,18 @@ async function buildOmsLive() {
       const g = geo[a.adres]; if (!g) return null;
       return { type: a.inst ? "installatie" : "order", adres: a.adres, klant: a.klant, lat: g.lat, lng: g.lng, count: a.count, types: [...a.types].slice(0, 3).join(", "), laatste: a.laatste };
     }).filter(Boolean);
+    // strip per-order fields the client never uses (adres/product were only needed above
+    // for the location map) — keeps the payload smaller
+    for (const o of orders) { delete o.adres; delete o.product; }
+    const at = Date.now();
     const data = { orders, contracts, locations, counts: { orders: orders.length, locations: locations.length, contracts: contracts.length } };
-    omsLiveCache = { at: Date.now(), data };
-    console.log(`[oms-live] snapshot built in ${Math.round((Date.now() - t0) / 1000)}s:`, JSON.stringify(data.counts));
+    const json = JSON.stringify({ cached: true, builtAt: at, ...data });
+    const gz = zlib.gzipSync(json); // pre-compress once; served to any client that accepts gzip
+    omsLiveCache = { at, data, json, gz };
+    console.log(`[oms-live] snapshot built in ${Math.round((Date.now() - t0) / 1000)}s: ${JSON.stringify(data.counts)} (json ${Math.round(json.length / 1048576)}MB, gz ${Math.round(gz.length / 1048576 * 10) / 10}MB)`);
   } catch (e) { console.error("[oms-live] build failed:", e.message); }
   finally { omsBuilding = false; }
 }
-
-// TEMP diagnostic: is our dataset complete, and what does OMS actually report?
-app.post("/api/oms-verify", async (req, res) => {
-  if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
-  const out = {};
-  try {
-    // stream ALL admin orders (slim) and aggregate by status and by year
-    const rows = await omsFetchAll("/v1/admin/orders", (O) => {
-      const items = O.orderItems || [];
-      const tonKg = Math.round(items.filter((it) => unitIsTon(it.unit)).reduce((s, it) => s + (+it.quantity || 0), 0) * 1000);
-      return { status: O.status, year: String(O.executedAt || O.date || "").slice(0, 4), excl: +O.totalExcl || 0, tonKg };
-    });
-    out.total_orders = rows.length;
-    const byStatus = {};
-    rows.forEach((r) => { const b = (byStatus[r.status] = byStatus[r.status] || { n: 0, excl: 0, ton: 0 }); b.n++; b.excl += r.excl; b.ton += r.tonKg / 1000; });
-    for (const k in byStatus) { byStatus[k].excl = Math.round(byStatus[k].excl); byStatus[k].ton = Math.round(byStatus[k].ton); }
-    out.by_status = byStatus;
-    const byYear = {};
-    rows.forEach((r) => { if (!r.year) return; const b = (byYear[r.year] = byYear[r.year] || { n: 0, excl: 0, ton: 0 }); b.n++; b.excl += r.excl; b.ton += r.tonKg / 1000; });
-    for (const k in byYear) { byYear[k].excl = Math.round(byYear[k].excl); byYear[k].ton = Math.round(byYear[k].ton); }
-    out.by_year = byYear;
-    res.json(out);
-  } catch (e) { res.status(502).json({ error: e.message, partial: out }); }
-});
 
 app.post("/api/oms-live", (req, res) => {
   if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
@@ -688,7 +671,12 @@ app.post("/api/oms-live", (req, res) => {
   // Serve the prepared snapshot instantly. Refresh in the background when stale (>6h).
   if (omsLiveCache.data) {
     if (Date.now() - omsLiveCache.at > 21600000 && !omsBuilding) buildOmsLive();
-    return res.json({ cached: true, builtAt: omsLiveCache.at, ...omsLiveCache.data });
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (omsLiveCache.gz && /\bgzip\b/.test(req.headers["accept-encoding"] || "")) {
+      res.setHeader("Content-Encoding", "gzip");
+      return res.end(omsLiveCache.gz);
+    }
+    return res.end(omsLiveCache.json || JSON.stringify({ cached: true, builtAt: omsLiveCache.at, ...omsLiveCache.data }));
   }
   // No snapshot yet (cold boot): kick off the build and tell the client to retry shortly.
   if (!omsBuilding) buildOmsLive();

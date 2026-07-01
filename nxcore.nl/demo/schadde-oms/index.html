@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=8"/>
+<link rel="stylesheet" href="styles.css?v=9"/>
 </head>
 <body>
 <div id="gate" class="gate">
@@ -51,7 +51,9 @@
       <select id="d-part" class="per-ctl"></select>
       <input type="date" id="d-day" class="per-ctl" title="Specifieke dag"/>
       <button class="per-reset" id="d-reset" type="button">Alles</button>
-      <div class="spacer"></div>
+      <span class="spacer"></span>
+      <span><label>Status</label></span>
+      <div class="statuschips" id="d-status"></div>
     </div>
     <div class="kpis" id="d-kpis"></div>
     <div class="chart-grid">
@@ -77,6 +79,8 @@
         <button data-g="afvalstroom">Afvalstroom</button>
         <button data-g="eural">Eural-code</button>
       </div>
+      <span><label>Status</label></span>
+      <div class="statuschips" id="f-status"></div>
       <div class="spacer"></div>
       <span id="sel-pill"></span>
     </div>
@@ -137,6 +141,6 @@
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
