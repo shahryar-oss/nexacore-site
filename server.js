@@ -657,6 +657,37 @@ async function buildOmsLive() {
   finally { omsBuilding = false; }
 }
 
+// TEMP diagnostic: is our dataset complete, and what does OMS actually report?
+app.post("/api/oms-verify", async (req, res) => {
+  if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  const out = {};
+  const get = (p) => fetch(`${OMS_API_BASE}${p}`, { headers: { Authorization: `Bearer ${OMS_API_KEY}`, Accept: "application/json" } }).then(async (r) => ({ s: r.status, j: await r.json().catch(() => null) }));
+  try {
+    // total count + last_page at per_page=1 (meta truth)
+    const m1 = await get("/v1/admin/orders?per_page=1&page=1");
+    const meta1 = m1.j && m1.j.meta;
+    out.meta_perpage1 = meta1 ? { total: meta1.total, last_page: meta1.last_page, per_page: meta1.per_page } : "no meta";
+    // last_page at per_page=500 (what our fetch sees)
+    const m500 = await get("/v1/admin/orders?per_page=500&page=1");
+    const meta500 = m500.j && m500.j.meta;
+    const d500 = m500.j && (m500.j.data || m500.j) || [];
+    out.meta_perpage500 = meta500 ? { total: meta500.total, last_page: meta500.last_page, per_page: meta500.per_page } : "no meta";
+    out.firstpage_first_order = d500[0] ? { nr: d500[0].orderNr, date: d500[0].date, executedAt: d500[0].executedAt, status: d500[0].status } : null;
+    out.firstpage_last_order = d500.length ? { nr: d500[d500.length - 1].orderNr, date: d500[d500.length - 1].date, status: d500[d500.length - 1].status } : null;
+    // fetch the actual last page to see the newest/oldest end
+    const lastPage = meta500 && meta500.last_page ? meta500.last_page : null;
+    if (lastPage && lastPage > 1) {
+      const ml = await get(`/v1/admin/orders?per_page=500&page=${lastPage}`);
+      const dl = ml.j && (ml.j.data || ml.j) || [];
+      out.lastpage = { page: lastPage, n: dl.length, first: dl[0] ? { date: dl[0].date, status: dl[0].status } : null, last: dl.length ? { date: dl[dl.length - 1].date, status: dl[dl.length - 1].status } : null };
+    }
+    // status distribution across first 500
+    const sc = {}; d500.forEach((o) => { sc[o.status] = (sc[o.status] || 0) + 1; });
+    out.status_sample_first500 = sc;
+    res.json(out);
+  } catch (e) { res.status(502).json({ error: e.message, partial: out }); }
+});
+
 app.post("/api/oms-live", (req, res) => {
   if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
   if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
