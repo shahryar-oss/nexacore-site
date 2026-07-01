@@ -671,21 +671,33 @@ app.post("/api/oms-lma-probe", async (req, res) => {
   try {
     const r = await omsFetchPage("/v1/admin/orders?per_page=250", 1);
     const rows = r.data;
-    const serviceTypes = new Set(), productTypes = new Set();
+    const serviceTypes = new Set(), productTypes = new Set(), administrations = new Set(), ledgers = new Set(), stockSections = new Set();
     const withStockSection = [], withLmaNotif = [], withRoute = [], withCollectorsArr = [];
+    const svcByProduct = {}; // service type -> which product types pair with it (helps spot outbound/transport)
+    const wasteNumByService = {}; // does wasteNumber attach to "Ophalen"/"Weging" only, or also others?
     rows.forEach((O) => {
+      if (O.administration) administrations.add(typeof O.administration === "object" ? (O.administration.name || JSON.stringify(O.administration)) : O.administration);
       (O.orderItems || []).forEach((it) => {
-        if (it.serviceType && it.serviceType.name) serviceTypes.add(it.serviceType.name);
-        if (it.productType && it.productType.name) productTypes.add(it.productType.name);
-        if (filled(it.stockSection) || filled(it.stock_batch_id)) withStockSection.push({ nr: O.orderNr, stockSection: it.stockSection, stock_batch_id: it.stock_batch_id, service: it.serviceType && it.serviceType.name });
+        const svc = it.serviceType && it.serviceType.name, prod = it.productType && it.productType.name;
+        if (svc) serviceTypes.add(svc);
+        if (prod) productTypes.add(prod);
+        if (svc) { (svcByProduct[svc] = svcByProduct[svc] || new Set()).add(prod || "(geen)"); }
+        if (svc) { wasteNumByService[svc] = wasteNumByService[svc] || { withWaste: 0, total: 0 }; wasteNumByService[svc].total++; if (filled(it.wasteNumber)) wasteNumByService[svc].withWaste++; }
+        if (it.ledger) ledgers.add(typeof it.ledger === "object" ? (it.ledger.name || JSON.stringify(it.ledger)) : it.ledger);
+        if (filled(it.stockSection)) stockSections.add(JSON.stringify(it.stockSection));
+        if (filled(it.stockSection) || filled(it.stock_batch_id)) withStockSection.push({ nr: O.orderNr, stockSection: it.stockSection, stock_batch_id: it.stock_batch_id, service: svc });
         if (filled(it.last_lma_notification_at)) withLmaNotif.push({ nr: O.orderNr, last_lma_notification_at: it.last_lma_notification_at });
-        if (filled(it.routeCollection)) withRoute.push({ nr: O.orderNr, routeCollection: it.routeCollection, service: it.serviceType && it.serviceType.name });
+        if (filled(it.routeCollection)) withRoute.push({ nr: O.orderNr, routeCollection: it.routeCollection, service: svc });
         if (filled(it.collectorsArrangement)) withCollectorsArr.push({ nr: O.orderNr, collectorsArrangement: it.collectorsArrangement });
       });
     });
+    const svcByProductOut = {}; for (const k in svcByProduct) svcByProductOut[k] = [...svcByProduct[k]];
     res.json({
       sampled: rows.length,
-      serviceTypes: [...serviceTypes], productTypes: [...productTypes],
+      administrations: [...administrations],
+      serviceTypes: [...serviceTypes], productTypes: [...productTypes], ledgers: [...ledgers], stockSections: [...stockSections],
+      serviceType_x_productType: svcByProductOut,
+      wasteNumber_coverage_by_serviceType: wasteNumByService,
       withStockSection_count: withStockSection.length, withStockSection_sample: withStockSection.slice(0, 8),
       withLmaNotif_count: withLmaNotif.length, withLmaNotif_sample: withLmaNotif.slice(0, 5),
       withRoute_count: withRoute.length, withRoute_sample: withRoute.slice(0, 5),
