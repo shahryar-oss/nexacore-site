@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=10"/>
+<link rel="stylesheet" href="styles.css?v=11"/>
 </head>
 <body>
 <div id="gate" class="gate">
@@ -73,17 +73,22 @@
       <select id="f-year" class="per-ctl"></select>
       <select id="f-part" class="per-ctl"></select>
       <input type="date" id="f-day" class="per-ctl" title="Specifieke dag"/>
-      <button class="per-reset" id="f-reset" type="button">Alles</button>
-      <span><label>Groepeer op</label></span>
-      <div class="seg" id="groupby">
-        <button data-g="productgroep" class="active">Productgroep</button>
-        <button data-g="afvalstroom">Afvalstroom</button>
-        <button data-g="eural">Eural-code</button>
+      <div class="stream-picker" id="stream-picker">
+        <button class="stream-picker-btn" id="stream-picker-btn" type="button">Afvalstroom <span id="stream-picker-label"></span> &#9662;</button>
+        <div class="stream-picker-panel hidden" id="stream-picker-panel">
+          <div class="sp-direction">
+            <button class="sp-dir-btn active" id="sp-dir-in" type="button">Ingevoerd</button>
+            <button class="sp-dir-btn" id="sp-dir-out" type="button">Uitgevoerd</button>
+          </div>
+          <div class="sp-streams" id="sp-streams"></div>
+          <div class="sp-actions">
+            <button class="sp-link" id="sp-clear" type="button">Wis selectie</button>
+            <button class="sp-link" id="sp-all" type="button">Alles selecteren</button>
+            <button class="btn-go sp-done" id="sp-done" type="button">Sluiten</button>
+          </div>
+        </div>
       </div>
-      <span><label>Status</label></span>
-      <div class="statuschips" id="f-status"></div>
       <div class="spacer"></div>
-      <span id="sel-pill"></span>
     </div>
 
     <div class="kpis" id="kpis"></div>
@@ -91,8 +96,11 @@
     <div class="grid2">
       <div class="panel">
         <div class="panel-head">
-          <h2>Afvalstromen</h2>
+          <h2>Afvalstromenrapport</h2>
           <span class="count" id="stream-count"></span>
+          <span class="internal-toggle">
+            <label><input type="checkbox" id="rap-internal"/> Toon orders/omzet (intern)</label>
+          </span>
           <span class="export-btns">
             <button class="btn-export" id="rap-csv" type="button">CSV</button>
             <button class="btn-export" id="rap-print" type="button">Print / PDF</button>
@@ -100,11 +108,10 @@
         </div>
         <div style="max-height:calc(100vh - 360px);overflow:auto">
           <table id="stream-table">
-            <thead><tr>
-              <th data-sort="key">Stroom</th>
-              <th class="num" data-sort="orders">Orders</th>
-              <th class="num" data-sort="ton">Gewicht (ton)</th>
-              <th class="num barcell" data-sort="omzet">Omzet (excl)</th>
+            <thead><tr id="stream-table-head">
+              <th>Afvalstroom</th>
+              <th>Periode</th>
+              <th class="num">Gewicht (ton)</th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -114,7 +121,7 @@
       <div class="panel">
         <div class="panel-head"><h2 id="detail-title">Per maand</h2><span class="count" id="detail-sub"></span></div>
         <div id="detail-months"></div>
-        <div class="panel-head" style="background:#eef2ec"><h2 style="color:var(--navy)">Grootste klanten</h2></div>
+        <div class="panel-head" style="background:#eef2ec"><h2 style="color:var(--navy)">Grootste klanten</h2><span class="count" style="color:var(--navy);opacity:.7">Intern &middot; niet in export</span></div>
         <table id="top-customers"><tbody></tbody></table>
       </div>
     </div>
@@ -193,6 +200,6 @@
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

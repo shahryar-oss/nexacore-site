@@ -1,16 +1,33 @@
 // OMS-aanvulling demo - runs on real OMS4Business exports (local only).
 let ORDERS=[], CONTRACTS=[], LOCS=null;
-const state={fYear:"alle", fPart:"all", fDay:"", statuses:new Set(["Factuur gemaakt"]), groupBy:"productgroep", selected:null, sortKey:"omzet", sortDir:-1, locFilter:"alle"};
+// Canonical waste-stream list per Dick's spec. `match` = real OMS productgroep string(s).
+// NOTE: "Bouw en sloop" (plain) has no exact OMS match - several similar buckets exist
+// ("Bouw en sloopafval container", "...sorteerbaar", "...niet sorteerbaar", "...80% puin",
+// "...50% recyclebaar"). Mapped to the largest/most generic bucket as a best guess -
+// flagged to the client for confirmation, not silently assumed as final.
+const WASTE_STREAM_MAP=[
+  {label:"Bedrijfsafval", match:["Bedrijfsafval"]},
+  {label:"Bouw en sloop licht", match:["Bouw- en sloopafval licht"]},
+  {label:"Bouw en sloop", match:["Bouw en sloopafval container"]},
+  {label:"Hout B", match:["Hout B"]},
+  {label:"Hout C", match:["Hout C"]},
+  {label:"Puin", match:["Puin"]},
+  {label:"Groen afval", match:["Groenafval"]},
+  {label:"Gipsafval", match:["Gipsafval"]},
+  {label:"Vlakglas", match:["Vlakglas"]},
+  {label:"Flessenglas", match:["Flessenglas"]},
+  {label:"Dakleer", match:["Dakleer"]},
+  {label:"Papier/Karton", match:["Papier / karton"]},
+  {label:"Metaal", match:["Metaal / schroot"]},
+  {label:"Bouw en sloop zanderig", match:["Bouw- en sloopafval zanderig"]},
+];
+const state={fYear:"alle", fPart:"all", fDay:"", statuses:new Set(["Factuur gemaakt"]), locFilter:"alle",
+  rapDirection:"in", rapStreams:new Set(WASTE_STREAM_MAP.map(s=>s.label)), rapInternal:false};
 const NLM=["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
 const eur=n=>"€ "+Math.round(n||0).toLocaleString("nl-NL");
 const ton=n=>(n/1000).toLocaleString("nl-NL",{maximumFractionDigits:1});
 const num=n=>(n||0).toLocaleString("nl-NL");
 
-function groupVal(o){
-  if(state.groupBy==="afvalstroom") return o.afvalstroom||"(geen afvalstroom)";
-  if(state.groupBy==="eural") return o.eural||"(geen Eural)";
-  return o.productgroep||"Onbekend";
-}
 function matchPeriod(o){
   const dt=o.uitvoerdatum||"";
   if(state.fDay) return dt===state.fDay;
@@ -32,56 +49,60 @@ function inPeriod(o){ return matchPeriod(o); }
 function matchStatus(o){ return !state.statuses.size || state.statuses.has(o.status); }
 function monthKey(o){ return (o.uitvoerdatum||"").slice(0,7); }
 
-function periodOrders(){ return ORDERS.filter((o)=>inPeriod(o)&&matchStatus(o)); }
-function selOrders(){ return periodOrders().filter(o=>!state.selected || groupVal(o)===state.selected); }
-
+// ---- Rapportage (per-waste-stream, statutory-style report) ----
+function rapStreamDef(label){ return WASTE_STREAM_MAP.find(s=>s.label===label); }
+function rapMatchSet(labels){ const set=new Set(); WASTE_STREAM_MAP.forEach(s=>{ if(labels.has(s.label)) s.match.forEach(m=>set.add(m)); }); return set; }
+// direction "out" (Uitgevoerd/afgevoerd naar verwerker) has NO source in OMS order data -
+// confirmed via API probe (single administration, no stockSection, only revenue ledgers).
+// Never fabricate a number for it; always return an empty set and show an honest note.
+function rapRows(labels,direction){
+  if(direction==="out") return [];
+  const prodSet=rapMatchSet(labels);
+  return ORDERS.filter(o=>matchPeriod(o)&&prodSet.has(o.productgroep));
+}
+function rapStreamLabelText(){
+  const n=state.rapStreams.size;
+  if(n===0) return "Geen selectie";
+  if(n===WASTE_STREAM_MAP.length) return "Alle stromen";
+  if(n===1) return [...state.rapStreams][0];
+  return n+" stromen";
+}
 function renderKpis(){
-  const rows=selOrders();
-  const orders=new Set(rows.map(o=>o.ordernr)).size;
-  const kg=rows.reduce((s,o)=>s+(o.netto_gewicht||0),0);
-  const streams=new Set(rows.map(o=>o.afvalstroom).filter(Boolean)).size;
-  const omzet=rows.reduce((s,o)=>s+(o.regeltotaal||0),0);
+  const inTon=rapRows(state.rapStreams,"in").reduce((s,o)=>s+(o.netto_gewicht||0),0);
   document.getElementById("kpis").innerHTML=[
-    ["Orders",num(orders),"in periode"+(state.selected?" / stroom":"")],
-    ["Verwerkt gewicht",ton(kg)+'<span class="unit">ton</span>',"netto gewogen"],
-    ["Afvalstromen",num(streams),"unieke nummers"],
-    ["Omzet (excl)",eur(omzet),"regeltotaal"],
+    ["Ingevoerd",ton(inTon)+'<span class="unit">ton</span>',"in geselecteerde periode"],
+    ["Uitgevoerd","n.v.t.","niet vastgelegd in OMS"],
+    ["Afvalstroom",rapStreamLabelText(),"geselecteerd"],
   ].map(([l,v,s])=>`<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
 }
-
-function aggregate(){
-  const m={};
-  periodOrders().forEach(o=>{
-    const k=groupVal(o);
-    (m[k]=m[k]||{key:k,orders:new Set(),ton:0,omzet:0});
-    m[k].orders.add(o.ordernr); m[k].ton+=(o.netto_gewicht||0)/1000; m[k].omzet+=(o.regeltotaal||0);
-  });
-  return Object.values(m).map(r=>({key:r.key,orders:r.orders.size,ton:r.ton,omzet:r.omzet}));
-}
-
 function renderStreams(){
-  let rows=aggregate();
-  const k=state.sortKey, d=state.sortDir;
-  rows.sort((a,b)=> (typeof a[k]==="string")? a[k].localeCompare(b[k])*d : (a[k]-b[k])*d);
-  const maxO=Math.max(1,...rows.map(r=>r.omzet));
-  document.getElementById("stream-count").textContent=rows.length+" stromen";
-  document.querySelector("#stream-table tbody").innerHTML=rows.map(r=>`
-    <tr data-k="${r.key.replace(/"/g,'&quot;')}" class="${state.selected===r.key?'sel':''}">
-      <td>${r.key}</td>
-      <td class="num">${num(r.orders)}</td>
-      <td class="num">${ton(r.ton*1000)}</td>
-      <td class="num barcell">${eur(r.omzet)}<div class="bar" style="width:${Math.max(2,r.omzet/maxO*100)}%"></div></td>
-    </tr>`).join("");
-  document.querySelectorAll("#stream-table tbody tr").forEach(tr=>{
-    tr.onclick=()=>{ const v=tr.getAttribute("data-k"); state.selected = state.selected===v?null:v; renderAll(); };
-  });
+  document.getElementById("stream-count").textContent=state.rapStreams.size+" van "+WASTE_STREAM_MAP.length+" stromen";
+  const internal=state.rapInternal;
+  const head=document.getElementById("stream-table-head");
+  head.innerHTML="<th>Afvalstroom</th><th>Periode</th><th class=\"num\">Gewicht (ton)</th>"+(internal?"<th class=\"num fin-col\">Orders</th><th class=\"num fin-col\">Omzet (excl)</th>":"");
+  const plabel=periodLabel();
+  const labels=[...state.rapStreams].sort((a,b)=>WASTE_STREAM_MAP.findIndex(s=>s.label===a)-WASTE_STREAM_MAP.findIndex(s=>s.label===b));
+  if(state.rapDirection==="out"){
+    document.querySelector("#stream-table tbody").innerHTML=`<tr><td colspan="${internal?5:3}" class="note">Uitgevoerde/afgevoerde hoeveelheden worden momenteel niet vastgelegd in OMS-orders (geen koppeling naar transport/verwerkersafgifte). Dit vraagt een aanvullende databron om hier te kunnen tonen.</td></tr>`;
+    return;
+  }
+  if(!labels.length){
+    document.querySelector("#stream-table tbody").innerHTML=`<tr><td colspan="${internal?5:3}" class="note">Selecteer één of meer afvalstromen via de knop hierboven.</td></tr>`;
+    return;
+  }
+  document.querySelector("#stream-table tbody").innerHTML=labels.map(label=>{
+    const def=rapStreamDef(label); const prodSet=new Set(def.match);
+    const rows=ORDERS.filter(o=>matchPeriod(o)&&prodSet.has(o.productgroep));
+    const kg=rows.reduce((s,o)=>s+(o.netto_gewicht||0),0);
+    const orders=new Set(rows.map(o=>o.ordernr)).size;
+    const omzet=rows.reduce((s,o)=>s+(o.regeltotaal||0),0);
+    return `<tr><td>${label}</td><td>${plabel}</td><td class="num">${ton(kg)}</td>${internal?`<td class="num fin-col">${num(orders)}</td><td class="num fin-col">${eur(omzet)}</td>`:""}</tr>`;
+  }).join("");
 }
-
 function renderDetail(){
-  const rows=selOrders();
-  document.getElementById("detail-title").textContent = state.selected? state.selected : "Per maand (alle stromen)";
-  document.getElementById("detail-sub").textContent = state.selected? "" : "";
-  // monthly
+  const rows=rapRows(state.rapStreams,"in");
+  document.getElementById("detail-title").textContent = "Per maand ("+rapStreamLabelText()+")";
+  document.getElementById("detail-sub").textContent = "";
   const byM={};
   rows.forEach(o=>{const m=monthKey(o); if(!m)return; (byM[m]=byM[m]||{kg:0,orders:new Set()}); byM[m].kg+=(o.netto_gewicht||0); byM[m].orders.add(o.ordernr);});
   const months=Object.keys(byM).sort();
@@ -90,22 +111,22 @@ function renderDetail(){
     const [y,mm]=m.split("-"); const lbl=`${NLM[+mm-1]} ${y}`;
     return `<div class="month-row"><div class="m">${lbl}</div><div class="b"><span style="width:${byM[m].kg/maxKg*100}%"></span></div><div class="v">${ton(byM[m].kg)} ton &middot; ${byM[m].orders.size} ord.</div></div>`;
   }).join("") : `<div class="note">Geen gewogen orders in deze selectie.</div>`;
-  // top customers by omzet
   const byC={};
   rows.forEach(o=>{const c=o.relatie||"(onbekend)"; (byC[c]=byC[c]||{omzet:0,kg:0,orders:new Set()}); byC[c].omzet+=(o.regeltotaal||0); byC[c].kg+=(o.netto_gewicht||0); byC[c].orders.add(o.ordernr);});
   const top=Object.entries(byC).sort((a,b)=>b[1].omzet-a[1].omzet).slice(0,10);
   document.querySelector("#top-customers tbody").innerHTML =
     `<tr><th>Klant</th><th class="num">Orders</th><th class="num">Ton</th><th class="num">Omzet</th></tr>`+
-    top.map(([c,v])=>`<tr style="cursor:default"><td>${c}</td><td class="num">${v.orders.size}</td><td class="num">${ton(v.kg)}</td><td class="num">${eur(v.omzet)}</td></tr>`).join("");
+    (top.length? top.map(([c,v])=>`<tr style="cursor:default"><td>${c}</td><td class="num">${v.orders.size}</td><td class="num">${ton(v.kg)}</td><td class="num">${eur(v.omzet)}</td></tr>`).join("")
+      : `<tr><td colspan="4" class="note">Geen data voor deze selectie.</td></tr>`);
 }
-
-function renderPill(){
-  const el=document.getElementById("sel-pill");
-  el.innerHTML = state.selected? `<span class="pill" id="clear-sel">${state.selected}<span class="x">&times;</span></span>` : "";
-  if(state.selected){ document.getElementById("clear-sel").onclick=()=>{state.selected=null;renderAll();}; }
+function renderStreamPicker(){
+  const lbl=document.getElementById("stream-picker-label"); if(lbl) lbl.textContent="("+rapStreamLabelText()+")";
+  document.querySelectorAll("#sp-streams .sp-chk").forEach(cb=>{ cb.checked=state.rapStreams.has(cb.dataset.label); });
+  const din=document.getElementById("sp-dir-in"), dout=document.getElementById("sp-dir-out");
+  if(din) din.classList.toggle("active",state.rapDirection==="in");
+  if(dout) dout.classList.toggle("active",state.rapDirection==="out");
 }
-
-function renderAll(){ renderKpis(); renderStreams(); renderDetail(); renderPill(); }
+function renderAll(){ renderKpis(); renderStreams(); renderDetail(); renderStreamPicker(); }
 
 // ---- Map ----
 let map=null, layer=null;
@@ -184,30 +205,46 @@ function fillStatusControls(){
   const present=[...new Set(ORDERS.map(o=>o.status).filter(Boolean))];
   const ordered=STATUS_ORDER.filter(s=>present.includes(s)).concat(present.filter(s=>!STATUS_ORDER.includes(s)));
   const html=ordered.map(s=>`<button class="chip-toggle" data-st="${s.replace(/"/g,'&quot;')}">${s}</button>`).join("");
-  ["d","f","l"].forEach(p=>{const el=document.getElementById(p+"-status"); if(el) el.innerHTML=html;});
+  // "f" (Rapportage) intentionally excluded - status filters removed there per client feedback
+  ["d","l"].forEach(p=>{const el=document.getElementById(p+"-status"); if(el) el.innerHTML=html;});
   syncStatusControls(); wireStatusControls();
 }
 function syncStatusControls(){
-  ["d","f","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.classList.toggle("active",state.statuses.has(b.dataset.st))));
+  ["d","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.classList.toggle("active",state.statuses.has(b.dataset.st))));
 }
 function wireStatusControls(){
-  ["d","f","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.onclick=()=>{
+  ["d","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.onclick=()=>{
     const s=b.dataset.st; if(state.statuses.has(s)) state.statuses.delete(s); else state.statuses.add(s);
-    syncStatusControls(); renderAll(); renderDashboard(); renderLma();
+    syncStatusControls(); renderDashboard(); renderLma();
   }));
+}
+
+function wireStreamPicker(){
+  const btn=document.getElementById("stream-picker-btn"), panel=document.getElementById("stream-picker-panel");
+  if(!btn||!panel) return;
+  document.getElementById("sp-streams").innerHTML=WASTE_STREAM_MAP.map(s=>
+    `<label class="sp-row"><input type="checkbox" class="sp-chk" data-label="${s.label.replace(/"/g,'&quot;')}"/> ${s.label}</label>`
+  ).join("");
+  btn.onclick=e=>{ e.stopPropagation(); panel.classList.toggle("hidden"); };
+  document.addEventListener("click",e=>{ if(!panel.classList.contains("hidden") && !document.getElementById("stream-picker").contains(e.target)) panel.classList.add("hidden"); });
+  document.getElementById("sp-dir-in").onclick=()=>{ state.rapDirection="in"; renderAll(); };
+  document.getElementById("sp-dir-out").onclick=()=>{ state.rapDirection="out"; renderAll(); };
+  document.querySelectorAll("#sp-streams .sp-chk").forEach(cb=>cb.onchange=()=>{
+    if(cb.checked) state.rapStreams.add(cb.dataset.label); else state.rapStreams.delete(cb.dataset.label);
+    renderAll();
+  });
+  document.getElementById("sp-clear").onclick=()=>{ state.rapStreams.clear(); renderAll(); };
+  document.getElementById("sp-all").onclick=()=>{ WASTE_STREAM_MAP.forEach(s=>state.rapStreams.add(s.label)); renderAll(); };
+  document.getElementById("sp-done").onclick=()=>panel.classList.add("hidden");
 }
 
 function wire(){
   fillPeriodControls();
   wirePeriod();
   fillStatusControls();
-  document.querySelectorAll("#groupby button").forEach(b=>b.onclick=()=>{
-    document.querySelectorAll("#groupby button").forEach(x=>x.classList.remove("active"));
-    b.classList.add("active"); state.groupBy=b.dataset.g; state.selected=null; renderAll();
-  });
-  document.querySelectorAll("#stream-table th[data-sort]").forEach(th=>th.onclick=()=>{
-    const k=th.dataset.sort; if(state.sortKey===k) state.sortDir*=-1; else {state.sortKey=k; state.sortDir=k==="key"?1:-1;} renderStreams();
-  });
+  wireStreamPicker();
+  const internalToggle=document.getElementById("rap-internal");
+  if(internalToggle) internalToggle.onchange=()=>{ state.rapInternal=internalToggle.checked; renderStreams(); };
   document.querySelectorAll("#lma-table th[data-sort]").forEach(th=>th.onclick=()=>{
     const k=th.dataset.sort; if(lmaState.sortKey===k) lmaState.sortDir*=-1; else {lmaState.sortKey=k; lmaState.sortDir=(k==="orders"||k==="ton")?-1:1;} renderLma();
   });
@@ -321,8 +358,26 @@ function downloadCsv(tableId,filename){
   a.href=URL.createObjectURL(blob); a.download=filename;
   document.body.appendChild(a); a.click(); a.remove();
 }
+// Rapportage export ALWAYS excludes Orders/Omzet, even if the internal on-screen toggle is
+// on - these reports go to municipalities/external parties and must never leak financials.
+function exportRapportageCsv(){
+  const plabel=periodLabel();
+  const rows=[["Afvalstroom","Periode","Gewicht (ton)"]];
+  if(state.rapDirection==="in"){
+    [...state.rapStreams].sort((a,b)=>WASTE_STREAM_MAP.findIndex(s=>s.label===a)-WASTE_STREAM_MAP.findIndex(s=>s.label===b)).forEach(label=>{
+      const def=rapStreamDef(label); const prodSet=new Set(def.match);
+      const kg=ORDERS.filter(o=>matchPeriod(o)&&prodSet.has(o.productgroep)).reduce((s,o)=>s+(o.netto_gewicht||0),0);
+      rows.push([label,plabel,ton(kg)]);
+    });
+  }
+  const csv="﻿"+rows.map(r=>r.map(c=>{ const t=String(c).replace(/"/g,'""'); return /[",;\n]/.test(t)?`"${t}"`:t; }).join(";")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="rapportage-afvalstromen.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function wireExports(){
-  const rc=document.getElementById("rap-csv"); if(rc) rc.onclick=()=>downloadCsv("stream-table","rapportage-afvalstromen.csv");
+  const rc=document.getElementById("rap-csv"); if(rc) rc.onclick=exportRapportageCsv;
   const rp=document.getElementById("rap-print"); if(rp) rp.onclick=()=>window.print();
   const lc=document.getElementById("lma-csv"); if(lc) lc.onclick=()=>downloadCsv("lma-table","lma-meldingen.csv");
   const lp=document.getElementById("lma-print"); if(lp) lp.onclick=()=>window.print();
