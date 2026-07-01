@@ -664,6 +664,36 @@ async function buildOmsLive() {
   finally { omsBuilding = false; }
 }
 
+// TEMP diagnostic: can we classify orders as incoming/outgoing (needed for LMA stock calc)?
+app.post("/api/oms-lma-probe", async (req, res) => {
+  if (!OMS_DEMO_CODE || String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
+  const filled = (v) => v !== null && v !== undefined && !(typeof v === "string" && v.trim() === "");
+  try {
+    const r = await omsFetchPage("/v1/admin/orders?per_page=250", 1);
+    const rows = r.data;
+    const serviceTypes = new Set(), productTypes = new Set();
+    const withStockSection = [], withLmaNotif = [], withRoute = [], withCollectorsArr = [];
+    rows.forEach((O) => {
+      (O.orderItems || []).forEach((it) => {
+        if (it.serviceType && it.serviceType.name) serviceTypes.add(it.serviceType.name);
+        if (it.productType && it.productType.name) productTypes.add(it.productType.name);
+        if (filled(it.stockSection) || filled(it.stock_batch_id)) withStockSection.push({ nr: O.orderNr, stockSection: it.stockSection, stock_batch_id: it.stock_batch_id, service: it.serviceType && it.serviceType.name });
+        if (filled(it.last_lma_notification_at)) withLmaNotif.push({ nr: O.orderNr, last_lma_notification_at: it.last_lma_notification_at });
+        if (filled(it.routeCollection)) withRoute.push({ nr: O.orderNr, routeCollection: it.routeCollection, service: it.serviceType && it.serviceType.name });
+        if (filled(it.collectorsArrangement)) withCollectorsArr.push({ nr: O.orderNr, collectorsArrangement: it.collectorsArrangement });
+      });
+    });
+    res.json({
+      sampled: rows.length,
+      serviceTypes: [...serviceTypes], productTypes: [...productTypes],
+      withStockSection_count: withStockSection.length, withStockSection_sample: withStockSection.slice(0, 8),
+      withLmaNotif_count: withLmaNotif.length, withLmaNotif_sample: withLmaNotif.slice(0, 5),
+      withRoute_count: withRoute.length, withRoute_sample: withRoute.slice(0, 5),
+      withCollectorsArr_count: withCollectorsArr.length, withCollectorsArr_sample: withCollectorsArr.slice(0, 5),
+    });
+  } catch (e) { res.status(502).json({ error: e.message }); }
+});
+
 app.post("/api/oms-live", (req, res) => {
   if (!OMS_DEMO_CODE) return res.status(503).json({ error: "Demo is niet beschikbaar." });
   if (String(req.body.code || "").trim() !== OMS_DEMO_CODE) return res.status(401).json({ error: "Onjuiste toegangscode." });
