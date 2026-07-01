@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css?v=9"/>
+<link rel="stylesheet" href="styles.css?v=10"/>
 </head>
 <body>
 <div id="gate" class="gate">
@@ -39,6 +39,7 @@
 <div class="tabs" id="app-tabs" style="display:none">
   <button class="tab active" data-tab="dashboard">Dashboard</button>
   <button class="tab" data-tab="rapportage">Rapportage</button>
+  <button class="tab" data-tab="lma">LMA-meldingen</button>
   <button class="tab" data-tab="locatie">Locatie-overzicht</button>
 </div>
 
@@ -89,7 +90,14 @@
 
     <div class="grid2">
       <div class="panel">
-        <div class="panel-head"><h2>Afvalstromen</h2><span class="count" id="stream-count"></span></div>
+        <div class="panel-head">
+          <h2>Afvalstromen</h2>
+          <span class="count" id="stream-count"></span>
+          <span class="export-btns">
+            <button class="btn-export" id="rap-csv" type="button">CSV</button>
+            <button class="btn-export" id="rap-print" type="button">Print / PDF</button>
+          </span>
+        </div>
         <div style="max-height:calc(100vh - 360px);overflow:auto">
           <table id="stream-table">
             <thead><tr>
@@ -110,6 +118,50 @@
         <table id="top-customers"><tbody></tbody></table>
       </div>
     </div>
+  </section>
+
+  <!-- LMA MELDINGEN -->
+  <section id="view-lma" class="hidden">
+    <div class="toolbar">
+      <span><label>Periode</label></span>
+      <select id="l-year" class="per-ctl"></select>
+      <select id="l-part" class="per-ctl"></select>
+      <input type="date" id="l-day" class="per-ctl" title="Specifieke dag"/>
+      <button class="per-reset" id="l-reset" type="button">Alles</button>
+      <span><label>Status</label></span>
+      <div class="statuschips" id="l-status"></div>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="kpis" id="lma-kpis"></div>
+
+    <div class="lma-note" id="lma-note">
+      <b>Let op — voorraadindicatie, geen fysieke telling.</b> OMS registreert de aanvoer van afval (weging, ophalen, wisselen) per Eural-code, maar houdt geen afgevoerde/verwerkte hoeveelheden bij. Het cijfer hieronder is daarom de netto <b>aanvoer</b> in de gekozen periode, niet de werkelijke voorraad op locatie. Voor een sluitende voorraadopgave aan de provincie voegen wij hier periodieke voorraadtellingen aan toe.
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Meldingsoverzicht per Eural-code</h2>
+        <span class="count" id="lma-count"></span>
+        <span class="export-btns">
+          <button class="btn-export" id="lma-csv" type="button">CSV</button>
+          <button class="btn-export" id="lma-print" type="button">Print / PDF</button>
+        </span>
+      </div>
+      <div style="max-height:calc(100vh - 460px);overflow:auto">
+        <table id="lma-table">
+          <thead><tr>
+            <th data-sort="eural">Eural-code</th>
+            <th data-sort="euralNaam">Omschrijving</th>
+            <th data-sort="verwerking">Verwerkingsmethode</th>
+            <th class="num" data-sort="orders">Meldingen</th>
+            <th class="num" data-sort="ton">Gewicht (ton)</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="note">Meldingsplichtige aanvoer: orders met een geregistreerde Eural-/afvalstroomcode (weging, ophalen, wisselen). Logistieke orders zonder afvalregistratie (bijv. plaatsen van een lege container) zijn hierin niet meegenomen.</div>
   </section>
 
   <!-- LOCATIE -->
@@ -141,6 +193,6 @@
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

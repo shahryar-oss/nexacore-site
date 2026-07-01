@@ -146,7 +146,7 @@ function fillPeriodControls(){
   const yearOpts=`<option value="alle">Alle jaren</option>`+years.map(y=>`<option value="${y}">${y}</option>`).join("");
   const partOpts=PART_OPTS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
   const dates=ORDERS.map(o=>o.uitvoerdatum).filter(Boolean).sort();
-  ["d","f"].forEach(p=>{
+  ["d","f","l"].forEach(p=>{
     const y=document.getElementById(p+"-year"); if(y) y.innerHTML=yearOpts;
     const pa=document.getElementById(p+"-part"); if(pa) pa.innerHTML=partOpts;
     const d=document.getElementById(p+"-day"); if(d){ d.min=dates[0]||""; d.max=dates.at(-1)||""; }
@@ -161,16 +161,16 @@ function periodLabel(){
   return state.fYear+suf;
 }
 function syncPeriodControls(){
-  ["d","f"].forEach(p=>{
+  ["d","f","l"].forEach(p=>{
     const y=document.getElementById(p+"-year"); if(y){ y.value=state.fYear; y.disabled=!!state.fDay; }
     const pa=document.getElementById(p+"-part"); if(pa){ pa.value=state.fPart; pa.disabled=state.fYear==="alle"||!!state.fDay; }
     const d=document.getElementById(p+"-day"); if(d) d.value=state.fDay;
   });
   const lbl=document.getElementById("period-label"); if(lbl) lbl.textContent="Periode: "+periodLabel();
 }
-function onPeriodChange(){ syncPeriodControls(); renderAll(); renderDashboard(); }
+function onPeriodChange(){ syncPeriodControls(); renderAll(); renderDashboard(); renderLma(); }
 function wirePeriod(){
-  ["d","f"].forEach(p=>{
+  ["d","f","l"].forEach(p=>{
     const y=document.getElementById(p+"-year"); if(y) y.onchange=e=>{ state.fYear=e.target.value; state.fDay=""; if(state.fYear==="alle") state.fPart="all"; onPeriodChange(); };
     const pa=document.getElementById(p+"-part"); if(pa) pa.onchange=e=>{ state.fPart=e.target.value; state.fDay=""; onPeriodChange(); };
     const d=document.getElementById(p+"-day"); if(d) d.onchange=e=>{ state.fDay=e.target.value; onPeriodChange(); };
@@ -184,16 +184,16 @@ function fillStatusControls(){
   const present=[...new Set(ORDERS.map(o=>o.status).filter(Boolean))];
   const ordered=STATUS_ORDER.filter(s=>present.includes(s)).concat(present.filter(s=>!STATUS_ORDER.includes(s)));
   const html=ordered.map(s=>`<button class="chip-toggle" data-st="${s.replace(/"/g,'&quot;')}">${s}</button>`).join("");
-  ["d","f"].forEach(p=>{const el=document.getElementById(p+"-status"); if(el) el.innerHTML=html;});
+  ["d","f","l"].forEach(p=>{const el=document.getElementById(p+"-status"); if(el) el.innerHTML=html;});
   syncStatusControls(); wireStatusControls();
 }
 function syncStatusControls(){
-  ["d","f"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.classList.toggle("active",state.statuses.has(b.dataset.st))));
+  ["d","f","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.classList.toggle("active",state.statuses.has(b.dataset.st))));
 }
 function wireStatusControls(){
-  ["d","f"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.onclick=()=>{
+  ["d","f","l"].forEach(p=>document.querySelectorAll("#"+p+"-status .chip-toggle").forEach(b=>b.onclick=()=>{
     const s=b.dataset.st; if(state.statuses.has(s)) state.statuses.delete(s); else state.statuses.add(s);
-    syncStatusControls(); renderAll(); renderDashboard();
+    syncStatusControls(); renderAll(); renderDashboard(); renderLma();
   }));
 }
 
@@ -208,19 +208,25 @@ function wire(){
   document.querySelectorAll("#stream-table th[data-sort]").forEach(th=>th.onclick=()=>{
     const k=th.dataset.sort; if(state.sortKey===k) state.sortDir*=-1; else {state.sortKey=k; state.sortDir=k==="key"?1:-1;} renderStreams();
   });
+  document.querySelectorAll("#lma-table th[data-sort]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.sort; if(lmaState.sortKey===k) lmaState.sortDir*=-1; else {lmaState.sortKey=k; lmaState.sortDir=(k==="orders"||k==="ton")?-1:1;} renderLma();
+  });
   document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
     document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
     const v=t.dataset.tab;
     document.getElementById("view-dashboard").classList.toggle("hidden",v!=="dashboard");
     document.getElementById("view-rapportage").classList.toggle("hidden",v!=="rapportage");
+    document.getElementById("view-lma").classList.toggle("hidden",v!=="lma");
     document.getElementById("view-locatie").classList.toggle("hidden",v!=="locatie");
     if(v==="locatie") renderMap();
     if(v==="dashboard") renderDashboard();
+    if(v==="lma") renderLma();
   });
   document.querySelectorAll("#loc-filter button").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#loc-filter button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); state.locFilter=b.dataset.l; renderMap();
   });
+  wireExports();
 }
 
 // ---- Dashboard charts ----
@@ -258,6 +264,70 @@ function renderDashboard(){
   mkChart("ch-top",{type:"bar",data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>Math.round(x[1])),backgroundColor:"#529915",borderRadius:4}]},options:{...baseOpts,indexAxis:"y",scales:{x:{ticks:{callback:v=>"€ "+v.toLocaleString("nl-NL")}}}}});
 }
 
+// ---- LMA-meldingen (waste-stream / Eural reporting for statutory notifications) ----
+const lmaState={sortKey:"ton",sortDir:-1};
+function lmaRows(){
+  return ORDERS.filter(o=>matchPeriod(o)&&matchStatus(o)&&o.eural);
+}
+function lmaAggregate(){
+  const m={};
+  lmaRows().forEach(o=>{
+    const k=o.eural+"|"+(o.verwerking||"");
+    (m[k]=m[k]||{eural:o.eural,euralNaam:o.euralNaam||"",verwerking:o.verwerking||"",orders:new Set(),ton:0});
+    m[k].orders.add(o.ordernr); m[k].ton+=(o.netto_gewicht||0)/1000;
+  });
+  return Object.values(m).map(r=>({eural:r.eural,euralNaam:r.euralNaam,verwerking:r.verwerking,orders:r.orders.size,ton:r.ton}));
+}
+function renderLma(){
+  const tbl=document.getElementById("lma-table"); if(!tbl) return;
+  const rows=lmaRows();
+  const orders=new Set(rows.map(o=>o.ordernr)).size;
+  const kg=rows.reduce((s,o)=>s+(o.netto_gewicht||0),0);
+  const streams=new Set(rows.map(o=>o.eural)).size;
+  document.getElementById("lma-kpis").innerHTML=[
+    ["Meldingen",num(orders),"orders met Eural-code"],
+    ["Netto aanvoer",ton(kg)+'<span class="unit">ton</span>',"in gekozen periode"],
+    ["Eural-codes",num(streams),"unieke codes"],
+  ].map(([l,v,s])=>`<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+  let agg=lmaAggregate();
+  const k=lmaState.sortKey,d=lmaState.sortDir;
+  agg.sort((a,b)=>(typeof a[k]==="string")? a[k].localeCompare(b[k])*d : (a[k]-b[k])*d);
+  document.getElementById("lma-count").textContent=agg.length+" Eural-codes";
+  document.querySelector("#lma-table tbody").innerHTML=agg.map(r=>`
+    <tr>
+      <td>${r.eural}</td>
+      <td>${r.euralNaam||"-"}</td>
+      <td>${r.verwerking||"-"}</td>
+      <td class="num">${num(r.orders)}</td>
+      <td class="num">${ton(r.ton*1000)}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="note">Geen meldingsplichtige orders in deze selectie.</td></tr>`;
+}
+
+// ---- export: CSV download + print/PDF for any rendered table ----
+function tableToCsv(tableId){
+  const tbl=document.getElementById(tableId); if(!tbl) return "";
+  const rows=[...tbl.querySelectorAll("tr")].map(tr=>
+    [...tr.children].map(td=>{
+      const t=td.textContent.replace(/\s+/g," ").trim().replace(/"/g,'""');
+      return /[",;\n]/.test(t)? `"${t}"` : t;
+    }).join(";")
+  );
+  return rows.join("\r\n");
+}
+function downloadCsv(tableId,filename){
+  const csv="﻿"+tableToCsv(tableId);
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function wireExports(){
+  const rc=document.getElementById("rap-csv"); if(rc) rc.onclick=()=>downloadCsv("stream-table","rapportage-afvalstromen.csv");
+  const rp=document.getElementById("rap-print"); if(rp) rp.onclick=()=>window.print();
+  const lc=document.getElementById("lma-csv"); if(lc) lc.onclick=()=>downloadCsv("lma-table","lma-meldingen.csv");
+  const lp=document.getElementById("lma-print"); if(lp) lp.onclick=()=>window.print();
+}
+
 // ---- access gate: data is only released by the server with the correct code ----
 async function unlock(code){
   const r=await fetch("/api/oms-live",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code})});
@@ -283,7 +353,7 @@ function boot(){
         const d=await unlock(code);
         if(d.building){ err.style.color="var(--muted)"; err.textContent=d.msg||"Live gegevens worden voorbereid, een moment..."; btn.textContent="Voorbereiden..."; setTimeout(attempt,12000); return; }
         err.style.color=""; ORDERS=d.orders||[]; CONTRACTS=d.contracts||[]; LOCS=d.locations||null;
-        showApp(); wire(); renderAll(); renderDashboard();
+        showApp(); wire(); renderAll(); renderDashboard(); renderLma();
       }catch(ex){ err.style.color=""; err.textContent=ex.message; btn.disabled=false; btn.textContent=lbl; }
     };
     attempt();

@@ -102,3 +102,21 @@ footer.foot b{color:var(--navy-2)}
 .chip-toggle{border:1px solid var(--line);background:#fff;color:var(--muted);padding:7px 11px;border-radius:999px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer}
 .chip-toggle:hover{border-color:var(--accent)}
 .chip-toggle.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* export buttons + LMA disclaimer */
+.export-btns{display:inline-flex;gap:6px;margin-left:auto}
+.btn-export{border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.12);color:#fff;padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-export:hover{background:rgba(255,255,255,.25)}
+.lma-note{background:#fff7e6;border:1px solid #f0d59a;color:#6b5000;border-radius:10px;padding:12px 15px;font-size:12.5px;line-height:1.5;margin-bottom:14px}
+.lma-note b{color:#4a3800}
+
+/* print: only show the active report, no chrome */
+@media print{
+  .gate,header.topbar,.tabs,.toolbar,footer.foot,.btn-export,#map,.map-legend,.chart-grid{display:none !important}
+  .wrap{padding:0}
+  section.hidden{display:none !important}
+  .panel{box-shadow:none;border:1px solid #ccc}
+  .panel-head{background:#eee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .panel-head h2{color:#111 !important}
+  body{background:#fff}
+}
