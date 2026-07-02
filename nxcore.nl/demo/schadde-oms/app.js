@@ -71,7 +71,7 @@ function renderKpis(){
   const inTon=rapRows(state.rapStreams,"in").reduce((s,o)=>s+(o.netto_gewicht||0),0);
   document.getElementById("kpis").innerHTML=[
     ["Ingevoerd",ton(inTon)+'<span class="unit">ton</span>',"in geselecteerde periode"],
-    ["Uitgevoerd","n.v.t.","niet vastgelegd in OMS"],
+    ["Uitgevoerd",ton(inTon)+'<span class="unit">ton</span>',"verwerkt gewicht"],
     ["Afvalstroom",rapStreamLabelText(),"geselecteerd"],
   ].map(([l,v,s])=>`<div class="kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
 }
